@@ -20,6 +20,7 @@ export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidSc
   const timeoutRef = useRef<number | undefined>(undefined);
   const deadlineRef = useRef(Date.now() + INACTIVITY_MS);
   const [cameraError, setCameraError] = useState<string>();
+  const [cameraReady, setCameraReady] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(INACTIVITY_SECONDS);
 
   const resetInactivity = useCallback(() => {
@@ -68,20 +69,32 @@ export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidSc
     <main className="kiosk-page scanner-screen" onPointerDown={resetInactivity} onKeyDown={resetInactivity}>
       <div className="checker checker--top" aria-hidden="true" />
       <BrandHeader />
-      <h1 className="scanner-title">QR 코드를 스캔해 주세요</h1>
+      <h1 className="page-title">QR 코드를 스캔해 주세요</h1>
       <p className="scanner-subtitle">스캔 화면은 <strong>{secondsRemaining}초</strong> 후 자동으로 닫힙니다</p>
       <div className="camera-preview">
-        <video ref={videoRef} muted playsInline aria-label="QR 코드 카메라 화면" />
+        <video
+          ref={videoRef}
+          className={cameraReady ? "is-ready" : ""}
+          muted
+          playsInline
+          onPlaying={() => setCameraReady(true)}
+          aria-label="QR 코드 카메라 화면"
+        />
+        {!cameraReady && !cameraError && (
+          <div className="camera-loading" aria-label="카메라를 준비하는 중입니다">
+            <img src="/images/global/spinner.svg" alt="" aria-hidden="true" />
+          </div>
+        )}
         {cameraError && <div className="camera-message">{cameraError}</div>}
         {saving && <div className="camera-message">결과를 저장하는 중입니다...</div>}
         {errorMessage && <div className="scanner-toast" role="alert">{errorMessage}</div>}
       </div>
-      <button className="secondary-button" type="button" onClick={onBack}>뒤로</button>
+      <button className="action-button action-button--secondary" type="button" onClick={onBack}>뒤로</button>
       <div className="checker checker--bottom" aria-hidden="true" />
-      <aside className="debug-tools" aria-label="디버그 도구">
+      <aside className="debug-tools" aria-label="Debug tools">
         <span>DEBUG</span>
-        <button type="button" onClick={debugValidScan}>유효 QR</button>
-        <button type="button" onClick={debugInvalidScan}>무효 QR</button>
+        <button type="button" onClick={debugValidScan}>Valid QR</button>
+        <button type="button" onClick={debugInvalidScan}>Invalid QR</button>
       </aside>
     </main>
   );
