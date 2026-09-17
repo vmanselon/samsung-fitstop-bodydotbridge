@@ -5,7 +5,6 @@ interface Props { section: MeasurementSectionData; }
 export function MeasurementSection({ section }: Props) {
   return (
     <section className="measurement-section">
-      <h2 className="measurement-section__title">{section.title}</h2>
       <div className={`measurement-visual measurement-visual--${section.view}`}>
         <img className="measurement-visual__character" src={section.imageUrl || "/images/character-placeholder.svg"} alt={`${section.title} 캐릭터 분석`} />
         <i className="target-ring target-ring--one" aria-hidden="true" />

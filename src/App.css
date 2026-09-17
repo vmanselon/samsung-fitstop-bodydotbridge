@@ -1,69 +1,80 @@
-:root {
-  /* Samsung Galaxy Tab S9+ portrait baseline: 1752 × 2800 physical pixels. */
-  font-family: "Samsung Gothic", "Noto Sans KR", "Malgun Gothic", sans-serif;
-  color: #171717;
-  background: #202020;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -webkit-text-size-adjust: 100%;
-  --blue: #0644dc;
-  --cyan: #08b7da;
-  --orange: #ffad34;
-  --line: #71dbef;
-}
+@font-face { font-family: "Samsung Gothic"; src: url("/fonts/삼성긴고딕/삼성긴고딕 Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Samsung Gothic"; src: url("/fonts/삼성긴고딕/삼성긴고딕 Medium.ttf") format("truetype"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Samsung Gothic"; src: url("/fonts/삼성긴고딕/삼성긴고딕 Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Samsung Gothic"; src: url("/fonts/삼성긴고딕/삼성긴고딕 ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: swap; }
 
+:root { font-family: "Samsung Gothic", "Noto Sans KR", "Malgun Gothic", sans-serif; color: #171717; background: #eee; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; --blue: #0644dc; --cyan: #08b7da; --orange: #ffad34; --line: #71dbef; }
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; margin: 0; }
-body { min-width: 320px; min-height: 100vh; background: #202020; }
-button { font: inherit; }
-
-.result-page { width: min(100%, 800px); min-height: 100vh; margin: 0 auto; padding: 0 36px; overflow: hidden; background: #fff; }
-.checker { height: 28px; margin-inline: -36px; background-color: #fff; background-image: linear-gradient(45deg, var(--blue) 25%, transparent 25%), linear-gradient(-45deg, var(--blue) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--blue) 75%), linear-gradient(-45deg, transparent 75%, var(--blue) 75%); background-position: 0 0, 0 14px, 14px -14px, -14px 0; background-size: 28px 28px; }
-.checker--bottom { margin-top: 44px; }
-.brand-header { display: flex; align-items: center; justify-content: center; gap: 22px; padding-top: 70px; }
+body { min-width: 320px; min-height: 100vh; background: #eee; }
+button { font: inherit; cursor: pointer; }
+.kiosk-page { position: relative; display: flex; flex-direction: column; width: min(100%, 800px); min-height: 100vh; margin: 0 auto; padding: 0 48px; overflow: hidden; background: #fff; }
+.checker { flex: 0 0 28px; height: 28px; margin-inline: -48px; background-color: #fff; background-image: linear-gradient(45deg, var(--blue) 25%, transparent 25%), linear-gradient(-45deg, var(--blue) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--blue) 75%), linear-gradient(-45deg, transparent 75%, var(--blue) 75%); background-position: 0 0, 0 14px, 14px -14px, -14px 0; background-size: 28px 28px; }
+.checker--bottom { margin-top: auto; }
+.brand-header { display: flex; align-items: center; justify-content: center; gap: 22px; padding-top: 80px; }
 .brand-header__samsung { width: 125px; height: auto; }
 .brand-header__fitstop { width: 230px; height: auto; }
-.page-title { margin: 36px 0 84px; color: var(--blue); text-align: center; font-size: 42px; line-height: 1.2; letter-spacing: -.04em; }
-.measurement-list { display: grid; gap: 72px; }
+.page-title, .scanner-title { margin: 42px 0 0; color: var(--blue); text-align: center; font-size: 42px; line-height: 1.2; letter-spacing: -.045em; }
+.result-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 78px 0 56px; }
+.result-tabs button { min-height: 58px; padding: 8px; border: 0; border-radius: 10px; background: #ececec; color: #555; font-size: 20px; font-weight: 700; }
+.result-tabs button.is-active { background: var(--blue); color: #fff; }
 .measurement-section { min-width: 0; }
-.measurement-section__title { margin: 0 8px 30px; padding: 13px 20px; border-radius: 10px; background: #ececec; color: #585858; text-align: center; font-size: 21px; font-weight: 800; }
-.measurement-visual { position: relative; height: 310px; margin-bottom: 28px; border-block: 2px solid var(--line); background: repeating-linear-gradient(to bottom, transparent 0 51px, rgb(113 219 239 / 65%) 51px 53px); overflow: hidden; }
-.measurement-visual__character { position: absolute; inset: 10px 0 0; width: 270px; height: 290px; margin: auto; object-fit: contain; }
+.measurement-visual { position: relative; height: 350px; margin: 0 34px 34px; border-block: 2px solid var(--line); background: repeating-linear-gradient(to bottom, transparent 0 65px, rgb(113 219 239 / 60%) 65px 67px); overflow: hidden; }
+.measurement-visual__character { position: absolute; inset: 10px 0 0; width: 330px; height: 330px; margin: auto; object-fit: contain; }
 .measurement-visual--side .measurement-visual__character { transform: rotateY(58deg) scaleX(.85); }
 .measurement-visual--back .measurement-visual__character { transform: rotateY(180deg); }
-.target-ring { position: absolute; width: 48px; aspect-ratio: 1; border: 4px dashed var(--cyan); border-radius: 50%; }
-.target-ring--one { left: calc(50% + 66px); top: 38px; }
-.target-ring--two { left: calc(50% - 100px); top: 178px; }
-.target-ring--three { left: calc(50% + 45px); top: 224px; }
-.measurement-visual--side .target-ring--one { left: calc(50% + 30px); top: 210px; }
-.measurement-visual--side .target-ring--two { left: calc(50% - 55px); top: 224px; }
-.measurement-visual--back .target-ring { width: 66px; border-radius: 8px; top: 205px; }
-.measurement-visual--back .target-ring--one { left: calc(50% - 94px); }
-.measurement-visual--back .target-ring--two { left: calc(50% + 28px); }
+.target-ring { position: absolute; width: 54px; aspect-ratio: 1; border: 4px dashed var(--cyan); border-radius: 50%; }
+.target-ring--one { left: calc(50% + 76px); top: 40px; }
+.target-ring--two { left: calc(50% - 118px); top: 200px; }
+.target-ring--three { left: calc(50% + 54px); top: 256px; }
+.measurement-visual--side .target-ring--one { left: calc(50% + 38px); top: 240px; }
+.measurement-visual--side .target-ring--two { left: calc(50% - 68px); top: 256px; }
+.measurement-visual--back .target-ring { width: 72px; border-radius: 8px; top: 236px; }
+.measurement-visual--back .target-ring--one { left: calc(50% - 110px); }
+.measurement-visual--back .target-ring--two { left: calc(50% + 35px); }
 .measurement-visual--back .target-ring--three { display: none; }
-.metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.metric-card { padding: 17px 12px 13px; border: 1px solid #d4d4d4; border-radius: 12px; text-align: center; }
+.metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.metric-card { padding: 18px 12px 13px; border: 1px solid #d4d4d4; border-radius: 12px; text-align: center; }
 .metric-card__label { margin: 0 0 12px; color: #515151; font-size: 19px; font-weight: 700; }
-.metric-card__value { margin: 0; padding: 7px 8px; border-radius: 8px; color: #fff; font-size: 20px; font-weight: 800; }
+.metric-card__value { margin: 0; padding: 8px; border-radius: 8px; color: #fff; font-size: 20px; font-weight: 800; }
 .metric-card__value--normal { background: var(--cyan); }
 .metric-card__value--attention { background: var(--orange); }
+.primary-button, .secondary-button { width: 100%; min-height: 66px; border: 0; border-radius: 8px; box-shadow: 0 5px 14px rgb(0 50 150 / 25%); font-weight: 700; }
+.primary-button { margin: 68px 0 50px; background: var(--blue); color: #fff; font-size: 20px; }
+.secondary-button { margin: 50px 0; background: #fff; color: #333; font-size: 18px; }
+.loading-screen__content { display: grid; justify-items: center; gap: 30px; margin: auto 0; padding-bottom: 170px; font-size: 20px; }
+.spinner { width: 86px; height: 86px; border: 12px solid #dce6fb; border-top-color: var(--blue); border-radius: 50%; animation: spin .85s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.scanner-title { margin-top: 54px; }
+.scanner-subtitle { margin: 12px 0 54px; text-align: center; color: #444; font-size: 17px; }
+.scanner-subtitle strong { color: var(--blue); }
+.camera-preview { position: relative; height: min(58vh, 670px); min-height: 410px; overflow: hidden; border-radius: 12px; background: #181818; }
+.camera-preview video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.camera-preview .scan-region-highlight, .camera-preview .code-outline-highlight { transform: scaleX(-1); }
+.camera-message, .scanner-toast { position: absolute; inset: auto 0 0; z-index: 3; padding: 25px 20px; background: rgb(255 65 72 / 95%); color: #fff; text-align: center; font-weight: 700; }
+.camera-message { inset: 0; display: grid; place-content: center; background: rgb(0 0 0 / 68%); }
+.save-notice { position: fixed; z-index: 5; left: 50%; bottom: 55px; transform: translateX(-50%); width: min(680px, calc(100% - 48px)); padding: 18px; border-radius: 8px; background: #202020; color: #fff; text-align: center; }
+.debug-tools { position: fixed; z-index: 10; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 6px; max-width: calc(100vw - 20px); padding: 6px; border-radius: 7px; background: rgb(20 20 20 / 82%); color: #fff; font: 12px sans-serif; }
+.debug-tools button { padding: 6px 8px; border: 0; border-radius: 4px; }
 .app-state { min-height: 100vh; display: grid; place-content: center; gap: 18px; padding: 40px; background: #fff; text-align: center; font-size: 24px; }
 .app-state h1, .app-state p { margin: 0; }
 .app-state button { justify-self: center; padding: 14px 28px; border: 0; border-radius: 10px; background: var(--blue); color: #fff; font-weight: 800; }
 
 @media (max-width: 560px) {
-  .result-page { padding-inline: 20px; }
+  .kiosk-page { padding-inline: 20px; }
   .checker { margin-inline: -20px; }
   .brand-header { padding-top: 44px; gap: 12px; }
   .brand-header__samsung { width: 92px; }
   .brand-header__fitstop { width: 165px; }
-  .page-title { margin: 28px 0 56px; font-size: 30px; }
-  .measurement-list { gap: 52px; }
-  .measurement-section__title { margin-bottom: 20px; font-size: 17px; }
-  .measurement-visual { height: 245px; }
-  .measurement-visual__character { width: 220px; height: 225px; }
+  .page-title, .scanner-title { margin-top: 30px; font-size: 30px; }
+  .result-tabs { gap: 7px; margin: 48px 0 32px; }
+  .result-tabs button { min-height: 48px; padding: 6px 3px; font-size: 14px; }
+  .measurement-visual { height: 270px; margin-inline: 10px; }
+  .measurement-visual__character { width: 240px; height: 255px; }
   .metric-grid { gap: 8px; }
   .metric-card { padding: 13px 6px 9px; }
   .metric-card__label, .metric-card__value { font-size: 14px; }
+  .primary-button { margin: 42px 0 35px; }
+  .scanner-subtitle { margin-bottom: 32px; }
+  .camera-preview { min-height: 360px; }
 }

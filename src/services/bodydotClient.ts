@@ -1,6 +1,6 @@
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { RUNTIME } from "../config/runtime";
-import type { BodyResult, MeasurementMetric, MeasurementSectionData } from "../types/bodyResult";
+import type { BodyResult, BodyResultRepository, MeasurementMetric, MeasurementSectionData } from "../types/bodyResult";
 
 function isMetric(value: unknown): value is MeasurementMetric {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -43,3 +43,11 @@ export async function getBodyResult(measurementId: string, signal?: AbortSignal)
   if (!response.ok) throw new Error(`BODYDOT API returned ${response.status}`);
   return parseBodyResult(await response.json());
 }
+
+export const bodydotApiRepository: BodyResultRepository = {
+  async getLatest(signal) {
+    const measurementId = new URLSearchParams(window.location.search).get("measurementId")?.trim();
+    if (!measurementId) throw new Error("measurementId가 필요합니다.");
+    return getBodyResult(measurementId, signal);
+  },
+};

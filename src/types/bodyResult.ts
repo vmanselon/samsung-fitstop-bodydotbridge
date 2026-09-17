@@ -14,3 +14,7 @@ export interface BodyResult {
   measuredAt?: string;
   sections: [MeasurementSectionData, MeasurementSectionData, MeasurementSectionData];
 }
+
+export interface BodyResultRepository {
+  getLatest(signal?: AbortSignal): Promise<BodyResult>;
+}
