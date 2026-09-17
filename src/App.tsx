@@ -14,6 +14,25 @@ import "./App.css";
 type Page = "result" | "scanner";
 const INVALID_QR_MESSAGE = "QR 코드를 인식할 수 없습니다. 다시 시도해 주세요.";
 const SAVE_FAILED_MESSAGE = "결과를 저장하지 못했습니다. 다시 시도해 주세요.";
+const FORCE_OFFLINE_NOTICE_PREVIEW = false;
+
+function OfflineNotice() {
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+
+  useEffect(() => {
+    const markOnline = () => setIsOnline(true);
+    const markOffline = () => setIsOnline(false);
+    window.addEventListener("online", markOnline);
+    window.addEventListener("offline", markOffline);
+    return () => {
+      window.removeEventListener("online", markOnline);
+      window.removeEventListener("offline", markOffline);
+    };
+  }, []);
+
+  if (isOnline && !FORCE_OFFLINE_NOTICE_PREVIEW) return null;
+  return <div className="offline-notice" role="alert">인터넷에 연결되어 있지 않습니다. 연결 상태를 확인해 주세요.</div>;
+}
 
 export default function App() {
   const { result, loading, error, reload, simulateNewResult } = useBodyResult();
@@ -122,12 +141,12 @@ export default function App() {
     });
   }, [result]);
 
-  if (loading) return <LoadingScreen />;
+  if (loading) return <><LoadingScreen /><OfflineNotice /></>;
   if (error || !result) {
-    return <main className="app-state app-state--error"><h1>측정 결과를 불러올 수 없습니다.</h1><p>{error ?? "잠시 후 다시 시도해 주세요."}</p><button type="button" onClick={reload}>다시 시도</button></main>;
+    return <><main className="app-state app-state--error"><h1>측정 결과를 불러올 수 없습니다.</h1><p>{error ?? "잠시 후 다시 시도해 주세요."}</p><button type="button" onClick={reload}>다시 시도</button></main><OfflineNotice /></>;
   }
   if (page === "scanner") {
-    return <QrScannerScreen onBack={leaveScanner} onCode={handleCode} debugValidScan={debugValidScan} debugInvalidScan={() => void handleCode("invalid-debug-token")} errorMessage={scannerError} saving={saving} />;
+    return <><QrScannerScreen onBack={leaveScanner} onCode={handleCode} debugValidScan={debugValidScan} debugInvalidScan={() => void handleCode("invalid-debug-token")} errorMessage={scannerError} saving={saving} /><OfflineNotice /></>;
   }
 
   return (
@@ -150,6 +169,7 @@ export default function App() {
       {saveNotice && <div className="action-button save-notice" role="status">{saveNotice}</div>}
       <div className="checker checker--bottom" aria-hidden="true" />
       {RUNTIME.useMockData && <aside className="debug-tools"><span>DEBUG · {result.measurementId}</span><button type="button" onClick={simulateNewResult}>Simulate New Result</button></aside>}
+      <OfflineNotice />
     </main>
   );
 }

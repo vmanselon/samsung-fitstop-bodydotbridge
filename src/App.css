@@ -419,6 +419,20 @@ button {
   transform: scaleX(-1);
 }
 
+.camera-preview .scan-region-highlight-svg {
+  left: 8% !important;
+  top: 8% !important;
+  width: 84% !important;
+  height: 84% !important;
+  stroke: #fff !important;
+  stroke-width: 3 !important;
+}
+
+.camera-preview .code-outline-highlight {
+  stroke: #fff !important;
+  stroke-width: 3 !important;
+}
+
 .camera-message,
 .scanner-toast {
   position: absolute;
@@ -445,6 +459,20 @@ button {
   color: #fff;
   text-align: center;
   font-size: 4.4rem;
+}
+
+.offline-notice {
+  position: fixed;
+  z-index: 20;
+  right: 4.8rem;
+  bottom: 13rem;
+  left: 4.8rem;
+  color: #e32636;
+  text-align: center;
+  font-size: 2.8rem;
+  font-weight: 700;
+  line-height: 1.4;
+  pointer-events: none;
 }
 
 .debug-tools {
