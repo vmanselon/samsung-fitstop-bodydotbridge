@@ -3,7 +3,7 @@ fn get_qr_secret() -> Result<String, String> {
     option_env!("FITSTOP_QR_SECRET")
         .filter(|secret| !secret.is_empty())
         .map(str::to_owned)
-        .ok_or_else(|| "QR_SECRET is not configured".to_owned())
+        .ok_or_else(|| "FITSTOP_QR_SECRET is not configured".to_owned())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

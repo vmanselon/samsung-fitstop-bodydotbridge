@@ -4,7 +4,7 @@ Portrait Android tablet application that reads BODYDOT measurement data and rend
 
 ## Target display
 
-The design target is a Samsung Galaxy Tab S9+ in portrait mode (1752 × 2800 physical pixels). The Android WebView uses density-independent pixels, and the desktop preview defaults to 800 × 1280 for convenient development.
+The design target is a Samsung Galaxy Tab S9 FE+ in portrait mode (1600 × 2560 physical pixels). The root font size uses the 1600-wide design baseline, where `1rem` equals 10 design units.
 
 ## Structure
 
@@ -32,7 +32,7 @@ Mock data is enabled by default. The result screen includes a debug control for 
 
 Result retrieval and saving have independent mock switches. To test real result retrieval while still preventing database writes, set `VITE_USE_MOCK_DATA=false` and leave `VITE_USE_MOCK_SAVE=true`.
 
-For a production Tauri build, set `QR_SECRET` to the same HMAC secret used by the Samsung printer kiosk. `VITE_QR_SECRET` is a development/mock-only convenience and must not expose a production secret in frontend assets.
+For a production Tauri build, set `FITSTOP_QR_SECRET` to the same HMAC secret used by the Samsung printer kiosk. `VITE_QR_SECRET` is a development/mock-only convenience and must not expose a production secret in frontend assets.
 
 To use the future API:
 

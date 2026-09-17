@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { BrandHeader } from "./components/BrandHeader";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { MeasurementSection } from "./components/MeasurementSection";
+import { OfflineNotice } from "./components/OfflineNotice";
 import { QrScannerScreen } from "./components/QrScannerScreen";
 import { RUNTIME } from "./config/runtime";
 import { useBodyResult } from "./hooks/useBodyResult";
@@ -14,25 +15,6 @@ import "./App.css";
 type Page = "result" | "scanner";
 const INVALID_QR_MESSAGE = "QR 코드를 인식할 수 없습니다. 다시 시도해 주세요.";
 const SAVE_FAILED_MESSAGE = "결과를 저장하지 못했습니다. 다시 시도해 주세요.";
-const FORCE_OFFLINE_NOTICE_PREVIEW = false;
-
-function OfflineNotice() {
-  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
-
-  useEffect(() => {
-    const markOnline = () => setIsOnline(true);
-    const markOffline = () => setIsOnline(false);
-    window.addEventListener("online", markOnline);
-    window.addEventListener("offline", markOffline);
-    return () => {
-      window.removeEventListener("online", markOnline);
-      window.removeEventListener("offline", markOffline);
-    };
-  }, []);
-
-  if (isOnline && !FORCE_OFFLINE_NOTICE_PREVIEW) return null;
-  return <div className="offline-notice" role="alert">인터넷에 연결되어 있지 않습니다. 연결 상태를 확인해 주세요.</div>;
-}
 
 export default function App() {
   const { result, loading, error, reload, simulateNewResult } = useBodyResult();
@@ -42,12 +24,14 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string>();
   const toastTimer = useRef<number | undefined>(undefined);
+  const saveNoticeTimer = useRef<number | undefined>(undefined);
   const processing = useRef(false);
   const saveController = useRef<AbortController | null>(null);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => () => {
     window.clearTimeout(toastTimer.current);
+    window.clearTimeout(saveNoticeTimer.current);
     saveController.current?.abort();
   }, []);
 
@@ -99,7 +83,8 @@ export default function App() {
           : `${payload.nickname}님의 결과를 저장했습니다.`,
       );
       leaveScanner();
-      window.setTimeout(() => setSaveNotice(undefined), 3500);
+      window.clearTimeout(saveNoticeTimer.current);
+      saveNoticeTimer.current = window.setTimeout(() => setSaveNotice(undefined), 3500);
     } catch (saveError) {
       if (controller.signal.aborted) return;
       console.error("Bodydot result save failed", saveError);
