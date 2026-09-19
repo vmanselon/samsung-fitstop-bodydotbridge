@@ -9,8 +9,8 @@ The design target is a Samsung Galaxy Tab S9 FE+ in portrait mode (1600 × 2560 
 ## Structure
 
 - `src/components` — result, loading, camera scanner, and shared UI
-- `src/hooks/useBodyResult.ts` — loading, refresh, and mock/API selection
-- `src/services/bodydotClient.ts` — replaceable Tauri HTTP repository and response validation
+- `src/hooks/useBodyResult.ts` — 12-second latest-session polling and last-known-good state
+- `src/services/bodydotClient.ts` — BAS session validation and UI-shape adapter
 - `src/services/qrToken.ts` — printer-kiosk-compatible HMAC QR validation
 - `src/services/resultSave.ts` — replaceable mock/save adapter
 - `src/types/bodyResult.ts` — UI/API boundary types
@@ -30,22 +30,94 @@ npm run dev
 
 Mock data is enabled by default. The result screen includes a debug control for simulating new Bodydot data. The scanner includes valid and invalid QR simulations. Mock saves log both the decoded user payload and current result to the developer console.
 
+When `VITE_USE_MOCK_DATA=false`, launch with `npm run tauri dev`, not
+`npm run dev`. BAS access uses a native Rust command and therefore is not
+available in a regular browser tab.
+
 Result retrieval and saving have independent mock switches. To test real result retrieval while still preventing database writes, set `VITE_USE_MOCK_DATA=false` and leave `VITE_USE_MOCK_SAVE=true`.
 
-For a production Tauri build, set `FITSTOP_QR_SECRET` to the same HMAC secret used by the Samsung printer kiosk. `VITE_QR_SECRET` is a development/mock-only convenience and must not expose a production secret in frontend assets.
+## Bodydot BAS configuration
 
-To use the future API:
+The BAS OAuth client ID and OAuth secret are used only by the Rust backend.
+Never prefix these values with `VITE_`: Vite exposes such variables to the
+webview bundle.
+
+For desktop development, provide the variables in the shell that launches
+Tauri, or add the same unprefixed names to the ignored local `.env` file:
+
+```powershell
+$env:BDOT_CLIENT_ID = "<BAS OAuth client ID>"
+$env:BDOT_CLIENT_SECRET = "<BAS OAuth client secret>"
+npm run tauri dev
+```
+
+Desktop builds first read the process environment at runtime. Android does not
+provide a conventional process environment, so release APKs use the OAuth
+variables at Rust compile time:
+
+```powershell
+$env:BDOT_CLIENT_ID = "<BAS OAuth client ID>"
+$env:BDOT_CLIENT_SECRET = "<BAS OAuth client secret>"
+npm run android:build
+```
+
+The OAuth values are compiled into the native Rust library for Android, not the
+frontend JavaScript assets. For stronger at-rest protection than an embedded
+mobile credential, BAS would need to support a trusted server-side proxy or a
+device credential store/provisioning flow.
+
+The Bodydot kiosk client ID defaults to
+`ff31aaa2-6621-4561-a756-ffb6d50dfa7b`. On the result or result-loading error
+screen, press and hold the invisible 150 × 150 px area in the top-right corner
+for five seconds to edit it. Releasing early cancels the gesture. The selected
+value is stored in the app's private data directory, is used immediately, and
+remains selected after the app restarts. This allows the same APK to be
+installed on different kiosks.
+
+On any screen, drag down at least 100 px from within the top 180 px to fully
+refresh the application.
+
+The kiosk settings dialog also contains an emergency Bodydot API toggle. When
+disabled, frontend polling stops and the native backend rejects new Bodydot
+requests. The app continues to show the most recently loaded result, or its
+built-in dummy result when no real result has loaded yet. This safeguard is
+deliberately session-only and resets to Enabled whenever the app restarts; it
+is never written to persistent storage.
+
+While the Bodydot API is enabled, tapping the invisible 150 × 150 px area in
+the result screen's top-left corner three times consecutively replaces the
+displayed result with the built-in dummy data. The tap sequence resets after
+600 milliseconds without another tap. Polling continues, and the dummy result remains
+visible until Bodydot returns a different measurement ID.
+
+`get_latest_measurement` takes no frontend arguments. It returns the complete
+BAS `MeasurementSession`, or a structured command error with codes including
+`MEASUREMENT_SESSION_NOT_FOUND`, `NETWORK_ERROR`, `AUTHENTICATION_FAILED`, and
+`RATE_LIMITED`. The Rust client caches tokens in memory, refreshes within 60
+seconds of expiry, retries one time after a 401, and honors numeric
+`Retry-After` values (falling back to 30 seconds).
+
+For a production Tauri build, set `QR_SECRET` to the same HMAC secret used by
+the Samsung printer kiosk. The native verifier and the Valid QR debug action
+both retrieve this one value. It is never exposed through a `VITE_` variable or
+included directly in the frontend assets. Existing local `VITE_QR_SECRET`
+values are accepted temporarily during builds for backward compatibility.
+
+To use BAS retrieval and a real result-save API:
 
 ```env
 VITE_USE_MOCK_DATA=false
-VITE_BODYDOT_API_BASE_URL=https://api.example.com
 VITE_USE_MOCK_SAVE=false
-VITE_BODYDOT_SAVE_URL=https://main-app.example.com/api/bodydot/results
+VITE_FITSTOP_SAVE_URL=https://main-app.example.com/api/bodydot/results
 ```
 
-The placeholder endpoint currently reads `GET /measurements/{measurementId}` using the `measurementId` query parameter. Replace the `BodyResultRepository` implementation once the latest-result API contract is ready. Replace the placeholder API origin in the Tauri capabilities and CSP at the same time.
+The current result design requires three sections containing three metrics each.
+`src/services/bodydotClient.ts` maps the BAS `valueCode` fields to the front,
+side, and flexibility cards and classifies each result as normal, moderate, or
+attention. BAS `twoPointDistance` values used by the shoulder-flexibility rules
+are converted from metres to centimetres before classification.
 
-After a valid QR scan, production save mode sends `POST application/json` to `VITE_BODYDOT_SAVE_URL`. The body contains `userId`, `nickname`, `measurementId`, `measuredAt`, `sections`, and the verified QR metadata under `qr`. The mapping is isolated in `toBodydotSavePayload`, so it can be adjusted to the main app's final DTO without changing the scanner or result screens. Any 2xx response is treated as success and returns to the result page; a network or non-2xx response keeps the scanner open and shows a retry message.
+After a valid QR scan, production save mode sends `POST application/json` to `VITE_FITSTOP_SAVE_URL`. The body contains `userId`, `nickname`, `measurementId`, `measuredAt`, `sections`, and the verified QR metadata under `qr`. The mapping is isolated in `toBodydotSavePayload`, so it can be adjusted to the main app's final DTO without changing the scanner or result screens. Any 2xx response is treated as success and returns to the result page; a network or non-2xx response keeps the scanner open and shows a retry message.
 
 ## Expected result shape
 

@@ -1,8 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
-import { RUNTIME } from "../config/runtime";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 
 export async function getQrSecret(): Promise<string> {
-  if (RUNTIME.useMockData) return RUNTIME.debugQrSecret;
-  if (!("__TAURI_INTERNALS__" in window)) throw new Error("QR secret is only available in the kiosk app");
-  return invoke<string>("get_qr_secret");
+  if (isTauri()) return invoke<string>("get_qr_secret");
+  return "fitstop-bodydot-debug-secret";
 }

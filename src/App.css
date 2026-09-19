@@ -35,8 +35,8 @@
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   --blue: #0644dc;
-  --cyan: #08b7da;
-  --orange: #ffad34;
+  --cyan: #00b4e6;
+  --orange: #ffae39;
   --line: #71dbef;
 }
 
@@ -47,6 +47,21 @@ html {
 
 * {
   box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 html,
@@ -81,6 +96,7 @@ button {
   padding: 0 9.6rem;
   overflow: hidden;
   background: #fff;
+  overscroll-behavior-y: contain;
 }
 
 .checker {
@@ -93,6 +109,36 @@ button {
 .checker--bottom {
   margin-top: auto;
   transform: rotate(180deg);
+}
+
+.kiosk-settings-hotspot {
+  position: fixed;
+  z-index: 15;
+  top: 0;
+  right: 0;
+  width: 150px;
+  height: 150px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.dummy-result-hotspot {
+  position: fixed;
+  z-index: 15;
+  top: 0;
+  left: 0;
+  width: 150px;
+  height: 150px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .brand-header {
@@ -307,8 +353,36 @@ button {
   background: var(--cyan);
 }
 
+.metric-card__value--moderate {
+  background: var(--orange);
+}
+
 .metric-card__value--attention {
   background: var(--orange);
+}
+
+.result-pagination {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 2.4rem;
+  margin-top: 4.5rem;
+}
+
+.result-pagination button {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #c8c8c8;
+  transition: width 160ms ease, background-color 160ms ease;
+}
+
+.result-pagination button.is-active {
+  width: 6rem;
+  background: var(--blue);
 }
 
 .action-button {
@@ -497,6 +571,119 @@ button {
   border-radius: 0.8rem;
 }
 
+.settings-dialog-backdrop {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 6rem;
+  background: rgb(0 0 0 / 55%);
+}
+
+.settings-dialog {
+  display: grid;
+  gap: 3.2rem;
+  width: min(100%, 105rem);
+  padding: 6rem;
+  border-radius: 2.4rem;
+  background: #fff;
+  box-shadow: 0 2rem 7rem rgb(0 0 0 / 30%);
+}
+
+.settings-dialog h2 {
+  margin: 0;
+  color: var(--blue);
+  font-size: 5.2rem;
+}
+
+.settings-dialog label {
+  color: #333;
+  font-size: 3.4rem;
+  font-weight: 700;
+}
+
+.settings-dialog input {
+  width: 100%;
+  min-height: 9rem;
+  padding: 1.8rem 2.4rem;
+  border: 0.3rem solid #aaa;
+  border-radius: 1.2rem;
+  font: 3.2rem sans-serif;
+}
+
+.settings-dialog input:focus {
+  border-color: var(--blue);
+  outline: 0.4rem solid rgb(6 68 220 / 18%);
+}
+
+.settings-dialog__error {
+  margin: 0;
+  color: #c72e24;
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.settings-dialog__api-status {
+  display: grid;
+  gap: 1.4rem;
+  padding: 2.8rem;
+  border: 0.3rem solid #83c99b;
+  border-radius: 1.2rem;
+  background: #effaf2;
+}
+
+.settings-dialog__api-status.is-disabled {
+  border-color: #ef8b82;
+  background: #fff1ef;
+}
+
+.settings-dialog__api-status p {
+  margin: 0;
+  color: #333;
+  font-size: 2.8rem;
+}
+
+.settings-dialog__api-status button {
+  min-height: 7.5rem;
+  border: 0;
+  border-radius: 1.2rem;
+  background: #c72e24;
+  color: #fff;
+  font-size: 3rem;
+  font-weight: 800;
+}
+
+.settings-dialog__api-status.is-disabled button {
+  background: #19833b;
+}
+
+.settings-dialog__actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2.4rem;
+}
+
+.settings-dialog__actions button {
+  min-height: 9rem;
+  border: 0;
+  border-radius: 1.2rem;
+  background: #e7e7e7;
+  color: #222;
+  font-size: 3.4rem;
+  font-weight: 800;
+}
+
+.settings-dialog__actions button[type="submit"] {
+  background: var(--blue);
+  color: #fff;
+}
+
+.settings-dialog__actions button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .app-state {
   min-height: 100vh;
   display: grid;
@@ -506,6 +693,7 @@ button {
   background: #fff;
   text-align: center;
   font-size: 4.8rem;
+  overscroll-behavior-y: contain;
 }
 
 .app-state h1,

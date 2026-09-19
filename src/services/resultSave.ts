@@ -47,7 +47,7 @@ export const mockResultSaver: ResultSaver = {
   async save(request, signal) {
     const payload = toBodydotSavePayload(request);
     console.info("[BODYDOT MOCK POST]", {
-      url: RUNTIME.saveUrl || "<VITE_BODYDOT_SAVE_URL>",
+      url: RUNTIME.saveUrl || "<VITE_FITSTOP_SAVE_URL>",
       method: "POST",
       body: payload,
     });
@@ -63,7 +63,7 @@ export const mockResultSaver: ResultSaver = {
 
 export const apiResultSaver: ResultSaver = {
   async save(request, signal) {
-    if (!RUNTIME.saveUrl) throw new Error("VITE_BODYDOT_SAVE_URL is not configured");
+    if (!RUNTIME.saveUrl) throw new Error("VITE_FITSTOP_SAVE_URL is not configured");
     const fetchRequest = "__TAURI_INTERNALS__" in window ? tauriFetch : globalThis.fetch;
     const response = await fetchRequest(RUNTIME.saveUrl, {
       method: "POST",

@@ -1,4 +1,4 @@
-export type MeasurementTone = "normal" | "attention";
+export type MeasurementTone = "normal" | "moderate" | "attention";
 export type MeasurementView = "front" | "side" | "back";
 
 export interface MeasurementMetric { label: string; value: string; tone: MeasurementTone; }
