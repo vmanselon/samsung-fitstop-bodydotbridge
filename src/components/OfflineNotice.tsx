@@ -1,22 +1,30 @@
 import { useEffect, useState } from "react";
 
-export function OfflineNotice() {
+interface OfflineNoticeProps {
+  networkError?: boolean;
+}
+
+const ONLINE_STATUS_CHECK_INTERVAL_MS = 2_000;
+
+export function OfflineNotice({ networkError = false }: OfflineNoticeProps) {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
 
   useEffect(() => {
-    const markOnline = () => setIsOnline(true);
-    const markOffline = () => setIsOnline(false);
+    const updateOnlineStatus = () => setIsOnline(navigator.onLine);
 
-    window.addEventListener("online", markOnline);
-    window.addEventListener("offline", markOffline);
+    updateOnlineStatus();
+    window.addEventListener("online", updateOnlineStatus);
+    window.addEventListener("offline", updateOnlineStatus);
+    const interval = window.setInterval(updateOnlineStatus, ONLINE_STATUS_CHECK_INTERVAL_MS);
 
     return () => {
-      window.removeEventListener("online", markOnline);
-      window.removeEventListener("offline", markOffline);
+      window.removeEventListener("online", updateOnlineStatus);
+      window.removeEventListener("offline", updateOnlineStatus);
+      window.clearInterval(interval);
     };
   }, []);
 
-  if (isOnline) return null;
+  if (isOnline && !networkError) return null;
 
   return (
     <div className="offline-notice" role="alert">

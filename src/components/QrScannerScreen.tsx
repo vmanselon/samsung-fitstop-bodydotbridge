@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
+import { RUNTIME } from "../config/runtime";
 import { BrandHeader } from "./BrandHeader";
 
 const INACTIVITY_MS = 30_000;
@@ -46,8 +47,8 @@ export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidSc
       onCode(data);
     }, {
       preferredCamera: "user",
-      highlightScanRegion: true,
-      highlightCodeOutline: true,
+      highlightScanRegion: false,
+      highlightCodeOutline: false,
       maxScansPerSecond: 8,
       returnDetailedScanResult: true,
     });
@@ -80,6 +81,15 @@ export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidSc
           onPlaying={() => setCameraReady(true)}
           aria-label="QR 코드 카메라 화면"
         />
+        {cameraReady && !cameraError && (
+          <svg
+            className="camera-scan-frame"
+            viewBox="0 0 238 238"
+            aria-hidden="true"
+          >
+            <path d="M31 2H10a8 8 0 0 0-8 8v21M207 2h21a8 8 0 0 1 8 8v21m0 176v21a8 8 0 0 1-8 8h-21m-176 0H10a8 8 0 0 1-8-8v-21" />
+          </svg>
+        )}
         {!cameraReady && !cameraError && (
           <div className="camera-loading" aria-label="카메라를 준비하는 중입니다">
             <img src="/images/global/spinner.svg" alt="" aria-hidden="true" />
@@ -91,11 +101,13 @@ export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidSc
       </div>
       <button className="action-button action-button--secondary" type="button" onClick={onBack}>뒤로</button>
       <div className="checker checker--bottom" aria-hidden="true" />
-      <aside className="debug-tools" aria-label="Debug tools">
-        <span>DEBUG</span>
-        <button type="button" onClick={debugValidScan}>Valid QR</button>
-        <button type="button" onClick={debugInvalidScan}>Invalid QR</button>
-      </aside>
+      {RUNTIME.useMockSave && (
+        <aside className="debug-tools" aria-label="Debug tools">
+          <span>DEBUG</span>
+          <button type="button" onClick={debugValidScan}>Valid QR</button>
+          <button type="button" onClick={debugInvalidScan}>Invalid QR</button>
+        </aside>
+      )}
     </main>
   );
 }

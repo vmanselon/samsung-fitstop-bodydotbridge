@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { RUNTIME } from "../config/runtime";
 import type { BodyResult, BodyResultRepository, MeasurementMetric, MeasurementSectionData } from "../types/bodyResult";
 
 export interface MeasurementStepResult {
@@ -184,7 +185,7 @@ export async function getLatestMeasurement(signal?: AbortSignal): Promise<Measur
     );
   }
   const session = parseMeasurementSession(await invoke<unknown>("get_latest_measurement"));
-  if (import.meta.env.DEV) console.info("[BODYDOT BAS SESSION]", session);
+  if (RUNTIME.logBdotSession) console.info("[BODYDOT BAS SESSION]", session);
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
   return session;
 }

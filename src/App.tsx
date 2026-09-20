@@ -18,12 +18,12 @@ const INVALID_QR_MESSAGE = "QR 코드를 인식할 수 없습니다. 다시 시�
 const SAVE_FAILED_MESSAGE = "결과를 저장하지 못했습니다. 다시 시도해 주세요.";
 const KIOSK_SETTINGS_HOLD_MS = 5_000;
 const DUMMY_RESULT_TAP_WINDOW_MS = 600;
-const PULL_TO_REFRESH_START_Y = 180;
-const PULL_TO_REFRESH_DISTANCE = 100;
+const PULL_TO_REFRESH_START_Y = 260;
+const PULL_TO_REFRESH_DISTANCE = 72;
 
 export default function App() {
   const [bdotApiDisabled, setBdotApiDisabled] = useState(false);
-  const { result, loading, error, reload, showDummyResult, simulateNewResult } = useBodyResult(!bdotApiDisabled);
+  const { result, loading, error, errorCode, reload, showDummyResult, simulateNewResult } = useBodyResult(!bdotApiDisabled);
   const [page, setPage] = useState<Page>("result");
   const [selectedSection, setSelectedSection] = useState(0);
   const [scannerError, setScannerError] = useState<string>();
@@ -70,22 +70,28 @@ export default function App() {
         ? { pointerId: event.pointerId, x: event.clientX, y: event.clientY }
         : undefined;
     };
-    const handlePointerUp = (event: PointerEvent) => {
+    const handlePullProgress = (event: PointerEvent) => {
       if (!start || start.pointerId !== event.pointerId) return;
       const horizontalDistance = event.clientX - start.x;
       const verticalDistance = event.clientY - start.y;
-      start = undefined;
       if (verticalDistance >= PULL_TO_REFRESH_DISTANCE && verticalDistance > Math.abs(horizontalDistance)) {
+        start = undefined;
         window.location.reload();
       }
+    };
+    const handlePointerUp = (event: PointerEvent) => {
+      handlePullProgress(event);
+      start = undefined;
     };
     const cancelPull = () => { start = undefined; };
 
     window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointermove", handlePullProgress);
     window.addEventListener("pointerup", handlePointerUp);
     window.addEventListener("pointercancel", cancelPull);
     return () => {
       window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointermove", handlePullProgress);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", cancelPull);
     };
@@ -309,17 +315,19 @@ export default function App() {
       )}
     </>
   );
+  const pullToRefreshZone = <div className="pull-to-refresh-zone" aria-hidden="true" />;
 
-  if (loading) return <><LoadingScreen /><OfflineNotice /></>;
+  if (loading) return <><LoadingScreen />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   if (!result) {
-    return <><main className="app-state app-state--error"><h1>측정 결과를 불러올 수 없습니다.</h1><p>{error ?? "잠시 후 다시 시도해 주세요."}</p><button type="button" onClick={reload}>다시 시도</button></main>{kioskSettingsControls}<OfflineNotice /></>;
+    return <><main className="app-state app-state--error"><h1>측정 결과를 불러올 수 없습니다.</h1><p>{error ?? "잠시 후 다시 시도해 주세요."}</p><button type="button" onClick={reload}>다시 시도</button></main>{pullToRefreshZone}{kioskSettingsControls}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   }
   if (page === "scanner") {
-    return <><QrScannerScreen onBack={leaveScanner} onCode={handleCode} debugValidScan={debugValidScan} debugInvalidScan={() => void handleCode("invalid-debug-token")} errorMessage={scannerError} saving={saving} /><OfflineNotice /></>;
+    return <><QrScannerScreen onBack={leaveScanner} onCode={handleCode} debugValidScan={debugValidScan} debugInvalidScan={() => void handleCode("invalid-debug-token")} errorMessage={scannerError} saving={saving} />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   }
 
   return (
     <main className="kiosk-page result-page">
+      {pullToRefreshZone}
       <div className="checker checker--top" aria-hidden="true" />
       {!bdotApiDisabled && (
         <button
@@ -355,11 +363,11 @@ export default function App() {
           />
         ))}
       </nav>
-      <button className="action-button action-button--primary" type="button" onClick={() => setPage("scanner")}>결과 저장</button>
+      <button className="action-button action-button--primary" type="button" onClick={() => setPage("scanner")}>QR 코드 스캔하기</button>
       {saveNotice && <div className="action-button save-notice" role="status">{saveNotice}</div>}
       <div className="checker checker--bottom" aria-hidden="true" />
       {RUNTIME.useMockData && <aside className="debug-tools"><span>DEBUG · {result.measurementId}</span><button type="button" onClick={simulateNewResult}>Simulate New Result</button></aside>}
-      <OfflineNotice />
+      <OfflineNotice networkError={errorCode === "NETWORK_ERROR"} />
     </main>
   );
 }

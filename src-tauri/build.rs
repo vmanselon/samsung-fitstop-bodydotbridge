@@ -38,7 +38,6 @@ fn native_config_source(key: &str, dotenv: &str) -> String {
 
 fn main() {
     println!("cargo:rerun-if-env-changed=QR_SECRET");
-    println!("cargo:rerun-if-env-changed=VITE_QR_SECRET");
     println!("cargo:rerun-if-env-changed=BDOT_CLIENT_ID");
     println!("cargo:rerun-if-env-changed=BDOT_CLIENT_SECRET");
     println!("cargo:rerun-if-changed=../.env");
@@ -47,14 +46,7 @@ fn main() {
     let qr_secret = env::var("QR_SECRET")
         .ok()
         .filter(|value| !value.trim().is_empty())
-        .or_else(|| dotenv_value(&dotenv, "QR_SECRET"))
-        // Backward compatibility for existing local .env files.
-        .or_else(|| {
-            env::var("VITE_QR_SECRET")
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        })
-        .or_else(|| dotenv_value(&dotenv, "VITE_QR_SECRET"));
+        .or_else(|| dotenv_value(&dotenv, "QR_SECRET"));
     let compiled_qr_secret = match qr_secret {
         Some(value) => format!("Some({value:?})"),
         None => "None".to_owned(),
