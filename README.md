@@ -174,7 +174,11 @@ attention. BAS `twoPointDistance` values used by the shoulder-flexibility rules
 are converted from metres to centimetres before classification.
 
 After a valid QR scan, production save mode sends `POST application/json` to
-`VITE_API_BASE_URL` plus the `/api/bodydot` route. The body contains `userID` from the verified QR code and
+Browser development requests use a local Vite proxy to avoid cross-origin restrictions.
+The proxy forwards to `VITE_API_BASE_URL`; restart the dev server after changing that value.
+Native Tauri requests use the HTTP plugin directly. Production browser hosting requires API CORS support or a same-origin reverse proxy.
+
+The save endpoint is `VITE_API_BASE_URL` plus the `/api/bodydot` route. The body contains `userID` from the verified QR code and
 `data`, an array of exactly three section objects (front, side, and flexibility).
 Each object contains its displayed `title` and `metrics`; every metric contains
 only its `label` and `value`. Internal IDs, timestamps, views, images, and tones are omitted. When

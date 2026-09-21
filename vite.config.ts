@@ -58,6 +58,13 @@ export default defineConfig(({ mode }) => ({
     port: 1420,
     strictPort: true,
     host: host || false,
+    proxy: {
+      "^/__dev/bodydot-api/api/bodydot$": {
+        target: loadEnv(mode, process.cwd(), "VITE_").VITE_API_BASE_URL?.trim().replace(/\/+$/u, "") || undefined,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/__dev\/bodydot-api/, ""),
+      },
+    },
     hmr: host
       ? {
           protocol: "ws",

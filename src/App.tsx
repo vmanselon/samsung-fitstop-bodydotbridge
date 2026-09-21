@@ -133,6 +133,8 @@ export default function App() {
       return;
     }
 
+    console.log("QR code decoded, userId:", payload.userId);
+
     const controller = new AbortController();
     saveController.current?.abort();
     saveController.current = controller;
@@ -147,8 +149,9 @@ export default function App() {
       leaveScanner();
       window.clearTimeout(saveNoticeTimer.current);
       saveNoticeTimer.current = window.setTimeout(() => setSaveNotice(undefined), 3500);
-    } catch {
+    } catch (error) {
       if (controller.signal.aborted) return;
+      console.error("[BODYDOT SAVE FAILED]", error);
       window.clearTimeout(toastTimer.current);
       setScannerError(SAVE_FAILED_MESSAGE);
       toastTimer.current = window.setTimeout(() => setScannerError(undefined), 3000);

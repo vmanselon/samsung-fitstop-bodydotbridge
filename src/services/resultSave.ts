@@ -6,7 +6,11 @@ import type { QrUser } from "./qrCode";
 const BODYDOT_SAVE_PATH = "/api/bodydot";
 
 function bodydotSaveUrl(): string {
-  return RUNTIME.apiBaseUrl ? `${RUNTIME.apiBaseUrl}${BODYDOT_SAVE_PATH}` : "";
+  if (!RUNTIME.apiBaseUrl) return "";
+  if (import.meta.env.DEV && !("__TAURI_INTERNALS__" in window)) {
+    return `/__dev/bodydot-api${BODYDOT_SAVE_PATH}`;
+  }
+  return `${RUNTIME.apiBaseUrl}${BODYDOT_SAVE_PATH}`;
 }
 
 export interface ResultSaveRequest {
@@ -84,6 +88,10 @@ export const apiResultSaver: ResultSaver = {
     const saveUrl = bodydotSaveUrl();
     if (!saveUrl) throw new Error("VITE_API_BASE_URL is not configured");
     const fetchRequest = "__TAURI_INTERNALS__" in window ? tauriFetch : globalThis.fetch;
+    console.info("[BODYDOT SAVE REQUEST]", {
+      url: saveUrl,
+      transport: fetchRequest === tauriFetch ? "native HTTP" : "browser fetch",
+    });
     const payload = toBodydotSavePayload(request);
     logCleanData(payload);
     const response = await fetchRequest(saveUrl, {
