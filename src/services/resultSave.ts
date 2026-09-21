@@ -3,10 +3,28 @@ import { RUNTIME } from "../config/runtime";
 import type { BodyResult } from "../types/bodyResult";
 import type { UserQrPayload } from "./qrToken";
 
+const BODYDOT_SAVE_PATH = "/api/bodydot";
+
+function bodydotSaveUrl(): string {
+  return RUNTIME.apiBaseUrl ? `${RUNTIME.apiBaseUrl}${BODYDOT_SAVE_PATH}` : "";
+}
+
 export interface ResultSaveRequest {
   user: UserQrPayload;
   result: BodyResult;
 }
+
+export interface CleanBodydotMetric {
+  label: string;
+  value: string;
+}
+
+export interface CleanBodydotSection {
+  title: string;
+  metrics: CleanBodydotMetric[];
+}
+
+export type CleanBodydotData = [CleanBodydotSection, CleanBodydotSection, CleanBodydotSection];
 
 /**
  * This is the POST body contract offered to the main application.
@@ -14,15 +32,8 @@ export interface ResultSaveRequest {
  * the server's final endpoint or DTO becomes available.
  */
 export interface BodydotSavePayload {
-  userId: string;
-  nickname: string;
-  measurementId: string;
-  measuredAt?: string;
-  sections: BodyResult["sections"];
-  qr: {
-    issuedAt: number;
-    stamps: UserQrPayload["stamps"];
-  };
+  userID: string;
+  data: CleanBodydotData;
 }
 
 export interface ResultSaver {
@@ -30,24 +41,31 @@ export interface ResultSaver {
 }
 
 export function toBodydotSavePayload({ user, result }: ResultSaveRequest): BodydotSavePayload {
+  const cleanSection = (section: BodyResult["sections"][number]): CleanBodydotSection => ({
+    title: section.title,
+    metrics: section.metrics.map(({ label, value }) => ({ label, value })),
+  });
+
   return {
-    userId: user.userId,
-    nickname: user.nickname,
-    measurementId: result.measurementId,
-    measuredAt: result.measuredAt,
-    sections: result.sections,
-    qr: {
-      issuedAt: user.issuedAt,
-      stamps: user.stamps,
-    },
+    userID: user.userId,
+    data: [
+      cleanSection(result.sections[0]),
+      cleanSection(result.sections[1]),
+      cleanSection(result.sections[2]),
+    ],
   };
+}
+
+function logCleanData(payload: BodydotSavePayload): void {
+  if (RUNTIME.useMockSave) console.info("[BODYDOT CLEAN DATA]", payload.data);
 }
 
 export const mockResultSaver: ResultSaver = {
   async save(request, signal) {
     const payload = toBodydotSavePayload(request);
+    logCleanData(payload);
     console.info("[BODYDOT MOCK POST]", {
-      url: RUNTIME.saveUrl || "<VITE_FITSTOP_SAVE_URL>",
+      url: bodydotSaveUrl() || `<VITE_API_BASE_URL>${BODYDOT_SAVE_PATH}`,
       method: "POST",
       body: payload,
     });
@@ -63,15 +81,18 @@ export const mockResultSaver: ResultSaver = {
 
 export const apiResultSaver: ResultSaver = {
   async save(request, signal) {
-    if (!RUNTIME.saveUrl) throw new Error("VITE_FITSTOP_SAVE_URL is not configured");
+    const saveUrl = bodydotSaveUrl();
+    if (!saveUrl) throw new Error("VITE_API_BASE_URL is not configured");
     const fetchRequest = "__TAURI_INTERNALS__" in window ? tauriFetch : globalThis.fetch;
-    const response = await fetchRequest(RUNTIME.saveUrl, {
+    const payload = toBodydotSavePayload(request);
+    logCleanData(payload);
+    const response = await fetchRequest(saveUrl, {
       method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(toBodydotSavePayload(request)),
+      body: JSON.stringify(payload),
       signal,
     });
     if (!response.ok) {

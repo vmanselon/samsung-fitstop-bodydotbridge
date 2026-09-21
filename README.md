@@ -57,7 +57,7 @@ Copy `.env.example` to `.env` for local development. Variables beginning with
 | `VITE_BDOT_LOG_SESSION` | `false` | Log full BAS sessions with the `[BODYDOT BAS SESSION]` label |
 | `VITE_BDOT_POLL_INTERVAL_MS` | `12000` | Milliseconds between latest-measurement API calls |
 | `VITE_USE_MOCK_SAVE` | `true` | Use local saves and show the QR test controls |
-| `VITE_FITSTOP_SAVE_URL` | Empty | Destination for production result saves |
+| `VITE_API_BASE_URL` | Empty | Base URL for production API requests |
 
 Restart the development process or rebuild the app after changing a `VITE_`
 variable. An invalid, zero, or negative polling interval falls back to 12,000
@@ -144,8 +144,11 @@ VITE_USE_MOCK_DATA=false
 VITE_BDOT_LOG_SESSION=false
 VITE_BDOT_POLL_INTERVAL_MS=12000
 VITE_USE_MOCK_SAVE=false
-VITE_FITSTOP_SAVE_URL=https://main-app.example.com/api/bodydot/results
+VITE_API_BASE_URL=https://fitstop.co.kr/
 ```
+
+Production builds enforce real Bodydot data, disabled BAS session logging, and
+real result saves through the committed `.env.production` settings.
 
 The initial loading screen remains visible for at least 500 milliseconds and
 does not close until the measurement, result images, and required fonts are
@@ -162,9 +165,12 @@ attention. BAS `twoPointDistance` values used by the shoulder-flexibility rules
 are converted from metres to centimetres before classification.
 
 After a valid QR scan, production save mode sends `POST application/json` to
-`VITE_FITSTOP_SAVE_URL`. The body contains `userId`, `nickname`,
-`measurementId`, `measuredAt`, `sections`, and the verified QR metadata under
-`qr`. The mapping is isolated in `toBodydotSavePayload`, so it can be adjusted
+`VITE_API_BASE_URL` plus the `/api/bodydot` route. The body contains `userID` from the verified QR code and
+`data`, an array of exactly three section objects (front, side, and flexibility).
+Each object contains its displayed `title` and `metrics`; every metric contains
+only its `label` and `value`. Internal IDs, timestamps, views, images, and tones are omitted. When
+`VITE_USE_MOCK_SAVE=true`, `data` is also written to the debug console. The mapping is isolated in
+`toBodydotSavePayload`, so it can be adjusted
 to the main app's final DTO without changing the scanner or result screens. Any
 2xx response is treated as success and returns to the result page; a network or
 non-2xx response keeps the scanner open and shows a retry message.

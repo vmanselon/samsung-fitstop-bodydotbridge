@@ -10,7 +10,7 @@
     {
       "identifier": "http:default",
       "allow": [
-        { "url": "https://api.example.com/**" },
+        { "url": "https://fitstop.co.kr/**" },
         { "url": "http://10.0.2.2:*/**" }
       ]
     }

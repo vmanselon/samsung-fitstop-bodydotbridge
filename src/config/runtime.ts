@@ -12,6 +12,6 @@ export const RUNTIME = {
     import.meta.env.VITE_BDOT_POLL_INTERVAL_MS?.trim(),
     DEFAULT_BDOT_POLL_INTERVAL_MS,
   ),
-  saveUrl: import.meta.env.VITE_FITSTOP_SAVE_URL?.trim() ?? "",
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/u, "") ?? "",
   useMockSave: import.meta.env.VITE_USE_MOCK_SAVE?.trim().toLowerCase() !== "false",
 };
