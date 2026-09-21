@@ -9,7 +9,7 @@ The design target is a Samsung Galaxy Tab S9 FE+ in portrait mode (1600 × 2560 
 ## Structure
 
 - `src/components` — result, loading, camera scanner, and shared UI
-- `src/hooks/useBodyResult.ts` — configurable latest-session polling and last-known-good state
+- `src/hooks/useBodyResult.ts` — idle-gated, one-shot latest-session retrieval
 - `src/services/bodydotClient.ts` — BAS session validation and UI-shape adapter
 - `src/services/qrCode.ts` — printer-kiosk-compatible JSON QR validation
 - `src/services/qrToken.ts` — legacy HMAC QR validation
@@ -56,13 +56,11 @@ Copy `.env.example` to `.env` for local development. Variables beginning with
 | `QR_SECRET` | None | Native-only HMAC secret shared with the Samsung printer kiosk |
 | `VITE_USE_MOCK_DATA` | `true` | Use local measurement data instead of the BAS API |
 | `VITE_BDOT_LOG_SESSION` | `false` | Log full BAS sessions with the `[BODYDOT BAS SESSION]` label |
-| `VITE_BDOT_POLL_INTERVAL_MS` | `12000` | Milliseconds between latest-measurement API calls |
 | `VITE_USE_MOCK_SAVE` | `true` | Use local saves and show the QR test controls |
 | `VITE_API_BASE_URL` | Empty | Base URL for production API requests |
 
 Restart the development process or rebuild the app after changing a `VITE_`
-variable. An invalid, zero, or negative polling interval falls back to 12,000
-milliseconds. Polling never starts a second request while one is in progress.
+variable.
 
 Full BAS sessions can contain measurement data. Enable
 `VITE_BDOT_LOG_SESSION` only while debugging and leave it disabled in
@@ -99,9 +97,9 @@ mobile credential, BAS would need to support a trusted server-side proxy or a
 device credential store/provisioning flow.
 
 The Bodydot kiosk client ID defaults to
-`ff31aaa2-6621-4561-a756-ffb6d50dfa7b`. On the result or result-loading error
-screen, press and hold the invisible 150 × 150 px area in the top-right corner
-for five seconds to edit it. Releasing early cancels the gesture. The selected
+`ff31aaa2-6621-4561-a756-ffb6d50dfa7b`. On the idle screen, press and hold the
+invisible 150 × 150 px area in the top-right corner for five seconds to edit it.
+Releasing early cancels the gesture. The selected
 value is stored in the app's private data directory, is used immediately, and
 remains selected after the app restarts. This allows the same APK to be
 installed on different kiosks.
@@ -110,17 +108,14 @@ On any screen, drag down at least 72 px from within the top 260 px to fully
 refresh the application.
 
 The kiosk settings dialog also contains an emergency Bodydot API toggle. When
-disabled, frontend polling stops and the native backend rejects new Bodydot
-requests. The app continues to show the most recently loaded result, or its
-built-in dummy result when no real result has loaded yet. This safeguard is
+disabled, the idle-screen start button opens the default dummy result without
+making a Bodydot request, and the native backend rejects new Bodydot requests. This safeguard is
 deliberately session-only and resets to Enabled whenever the app restarts; it
 is never written to persistent storage.
 
-While the Bodydot API is enabled, tapping the invisible 150 × 150 px area in
-the result screen's top-left corner three times consecutively replaces the
-displayed result with the built-in dummy data. The tap sequence resets after
-600 milliseconds without another tap. Polling continues, and the dummy result remains
-visible until Bodydot returns a different measurement ID.
+Tapping the invisible 150 × 150 px area in the idle screen's top-left corner
+three times consecutively opens the result screen with the built-in dummy data.
+The tap sequence resets after 600 milliseconds without another tap.
 
 `get_latest_measurement` takes no frontend arguments. It returns the complete
 BAS `MeasurementSession`, or a structured command error with codes including
@@ -133,7 +128,7 @@ seconds of expiry, retries one time after a 401, and honors numeric
 
 Current FITSTOP codes contain JSON, for example
 `{"id":"user-001","name":"홍길동","result":[1,0,1,0]}`. The scanner validates
-these fields using the printer kiosk's format and sends `id` as `userID` to the
+these fields using the printer kiosk's format and sends `id` as `userId` to the
 save API. These codes are unsigned and do not use `QR_SECRET`. The Valid QR debug
 action uses this format too.
 
@@ -151,7 +146,6 @@ To use BAS retrieval and the real result-save API:
 ```env
 VITE_USE_MOCK_DATA=false
 VITE_BDOT_LOG_SESSION=false
-VITE_BDOT_POLL_INTERVAL_MS=12000
 VITE_USE_MOCK_SAVE=false
 VITE_API_BASE_URL=https://fitstop.co.kr/
 ```
@@ -159,13 +153,23 @@ VITE_API_BASE_URL=https://fitstop.co.kr/
 Production builds enforce real Bodydot data, disabled BAS session logging, and
 real result saves through the committed `.env.production` settings.
 
-The initial loading screen remains visible for at least 500 milliseconds and
-does not close until the measurement, result images, and required fonts are
-ready. This prevents an incomplete result screen from flashing into view.
+The app opens on the idle screen. When the Bodydot API is enabled, it is not
+called until the user presses the start button. The loading screen then remains
+visible for at least 500 milliseconds and does not close until the one requested
+measurement, result images, and required fonts are ready. When the API is
+disabled, the same button opens the default dummy result without an API call.
+
+Only the result page has the general inactivity reset. After 21 seconds without
+touch or keyboard input, a centered warning overlay shows the final 9-second
+countdown. Any interaction dismisses the overlay and restarts the timer. At 30
+seconds the current session is cleared and the app returns to idle. Both values
+are easy to change in `src/config/kiosk.ts` through
+`resultInactivityTimeoutMs` and `resultInactivityWarningMs`. The QR scanner's
+own timeout is configured there as `qrScannerInactivityTimeoutMs`.
 
 The red offline banner uses both the device's connectivity state and real BAS
-`NETWORK_ERROR` responses. It remains available on the loading, error, result,
-and QR scanner screens.
+`NETWORK_ERROR` responses. It remains available on the idle, loading, error,
+result, and QR scanner screens.
 
 The current result design requires three sections containing three metrics each.
 `src/services/bodydotClient.ts` maps the BAS `valueCode` fields to the front,
@@ -178,15 +182,17 @@ Browser development requests use a local Vite proxy to avoid cross-origin restri
 The proxy forwards to `VITE_API_BASE_URL`; restart the dev server after changing that value.
 Native Tauri requests use the HTTP plugin directly. Production browser hosting requires API CORS support or a same-origin reverse proxy.
 
-The save endpoint is `VITE_API_BASE_URL` plus the `/api/bodydot` route. The body contains `userID` from the verified QR code and
-`data`, an array of exactly three section objects (front, side, and flexibility).
-Each object contains its displayed `title` and `metrics`; every metric contains
+The save endpoint is `VITE_API_BASE_URL` plus the `/api/bodydot` route. The body contains `userId` from the verified QR code and
+`data`, an object containing `frontMeasurementResults`, `sideMeasurementResults`,
+and `flexibilityMeasurementResults`. Each section contains its displayed `title` and `metrics`; every metric contains
 only its `label` and `value`. Internal IDs, timestamps, views, images, and tones are omitted. When
 `VITE_USE_MOCK_SAVE=true`, `data` is also written to the debug console. The mapping is isolated in
 `toBodydotSavePayload`, so it can be adjusted
 to the main app's final DTO without changing the scanner or result screens. Any
-2xx response is treated as success and returns to the result page; a network or
-non-2xx response keeps the scanner open and shows a retry message.
+2xx response is treated as success, clears the current session, and returns to
+the idle page; a network or non-2xx response keeps the scanner open and shows a
+retry message. The scanner's 30-second inactivity timeout also clears the
+session and returns to idle. Its Exit button performs the same reset immediately.
 
 ## Expected result shape
 

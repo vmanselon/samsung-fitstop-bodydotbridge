@@ -28,7 +28,11 @@ export interface CleanBodydotSection {
   metrics: CleanBodydotMetric[];
 }
 
-export type CleanBodydotData = [CleanBodydotSection, CleanBodydotSection, CleanBodydotSection];
+export interface CleanBodydotData {
+  frontMeasurementResults: CleanBodydotSection;
+  sideMeasurementResults: CleanBodydotSection;
+  flexibilityMeasurementResults: CleanBodydotSection;
+}
 
 /**
  * This is the POST body contract offered to the main application.
@@ -36,7 +40,7 @@ export type CleanBodydotData = [CleanBodydotSection, CleanBodydotSection, CleanB
  * the server's final endpoint or DTO becomes available.
  */
 export interface BodydotSavePayload {
-  userID: string;
+  userId: string;
   data: CleanBodydotData;
 }
 
@@ -51,12 +55,12 @@ export function toBodydotSavePayload({ user, result }: ResultSaveRequest): Bodyd
   });
 
   return {
-    userID: user.userId,
-    data: [
-      cleanSection(result.sections[0]),
-      cleanSection(result.sections[1]),
-      cleanSection(result.sections[2]),
-    ],
+    userId: user.userId,
+    data: {
+      frontMeasurementResults: cleanSection(result.sections[0]),
+      sideMeasurementResults: cleanSection(result.sections[1]),
+      flexibilityMeasurementResults: cleanSection(result.sections[2]),
+    },
   };
 }
 

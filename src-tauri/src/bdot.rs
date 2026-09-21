@@ -41,7 +41,7 @@ impl BdotError {
     fn rate_limited(retry_after: Duration) -> Self {
         Self {
             code: "RATE_LIMITED",
-            message: "Bodydot API rate limit reached; polling is temporarily paused".into(),
+            message: "Bodydot API rate limit reached; please try again later".into(),
             retry_after_seconds: Some(retry_after.as_secs().max(1)),
         }
     }

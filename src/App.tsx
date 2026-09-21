@@ -1,41 +1,58 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, PointerEvent as ReactPointerEvent } from "react";
 import { BrandHeader } from "./components/BrandHeader";
+import { IdleScreen } from "./components/IdleScreen";
+import { InactivityOverlay } from "./components/InactivityOverlay";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { MeasurementSection } from "./components/MeasurementSection";
 import { OfflineNotice } from "./components/OfflineNotice";
 import { QrScannerScreen } from "./components/QrScannerScreen";
+import { KIOSK_TIMING } from "./config/kiosk";
 import { RUNTIME } from "./config/runtime";
 import { useBodyResult } from "./hooks/useBodyResult";
+import { useInactivityTimeout } from "./hooks/useInactivityTimeout";
 import { getQrSecret } from "./services/qrSecret";
 import { decodeQrUser } from "./services/qrCode";
 import { resultSaver } from "./services/resultSave";
 import { getBdotApiEnabled, getKioskClientId, saveKioskClientId, setBdotApiEnabled } from "./services/kioskClientId";
 import "./App.css";
 
-type Page = "result" | "scanner";
-const INVALID_QR_MESSAGE = "Unable to recognize this QR code. Please try again.";
-const SAVE_FAILED_MESSAGE = "Failed to save your results. Please try again.";
+type Page = "idle" | "loading" | "result" | "scanner";
+interface ScannerError {
+  kind: "toast" | "dialog";
+  title: string;
+  message: string;
+  userId?: string;
+}
+
+const INVALID_QR_ERROR: ScannerError = {
+  kind: "toast",
+  title: "QR code error",
+  message: "Unable to recognize this QR code. Please try again.",
+};
+const SAVE_FAILED_MESSAGE = "Failed to save your results.";
 const KIOSK_SETTINGS_HOLD_MS = 5_000;
 const DUMMY_RESULT_TAP_WINDOW_MS = 600;
 const PULL_TO_REFRESH_START_Y = 260;
 const PULL_TO_REFRESH_DISTANCE = 72;
 
 export default function App() {
-  const [bdotApiDisabled, setBdotApiDisabled] = useState(false);
-  const { result, loading, error, errorCode, reload, showDummyResult, simulateNewResult } = useBodyResult(!bdotApiDisabled);
-  const [page, setPage] = useState<Page>("result");
+  const [bdotApiDisabled, setBdotApiDisabled] = useState(true);
+  const [apiStatusLoaded, setApiStatusLoaded] = useState(false);
+  const [measurementRequested, setMeasurementRequested] = useState(false);
+  const { result, loading, error, errorCode, reload, showDummyResult, simulateNewResult } = useBodyResult(
+    measurementRequested && !bdotApiDisabled,
+  );
+  const [page, setPage] = useState<Page>("idle");
   const [selectedSection, setSelectedSection] = useState(0);
-  const [scannerError, setScannerError] = useState<string>();
+  const [scannerError, setScannerError] = useState<ScannerError>();
   const [saving, setSaving] = useState(false);
-  const [saveNotice, setSaveNotice] = useState<string>();
   const [kioskEditorOpen, setKioskEditorOpen] = useState(false);
   const [kioskClientId, setKioskClientId] = useState("");
   const [kioskEditorError, setKioskEditorError] = useState<string>();
   const [kioskEditorBusy, setKioskEditorBusy] = useState(false);
   const [apiToggleBusy, setApiToggleBusy] = useState(false);
-  const toastTimer = useRef<number | undefined>(undefined);
-  const saveNoticeTimer = useRef<number | undefined>(undefined);
+  const qrToastTimer = useRef<number | undefined>(undefined);
   const kioskSettingsHoldTimer = useRef<number | undefined>(undefined);
   const dummyResultTapTimer = useRef<number | undefined>(undefined);
   const dummyResultTapCount = useRef(0);
@@ -44,8 +61,7 @@ export default function App() {
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => () => {
-    window.clearTimeout(toastTimer.current);
-    window.clearTimeout(saveNoticeTimer.current);
+    window.clearTimeout(qrToastTimer.current);
     window.clearTimeout(kioskSettingsHoldTimer.current);
     window.clearTimeout(dummyResultTapTimer.current);
     saveController.current?.abort();
@@ -57,7 +73,10 @@ export default function App() {
       .then((enabled) => {
         if (!cancelled) setBdotApiDisabled(!enabled);
       })
-      .catch((statusError) => console.error("Could not read Bodydot API status", statusError));
+      .catch((statusError) => console.error("Could not read Bodydot API status", statusError))
+      .finally(() => {
+        if (!cancelled) setApiStatusLoaded(true);
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -98,24 +117,49 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!result) return;
+    if (!result || !measurementRequested) return;
     setSelectedSection(0);
     setPage("result");
-  }, [result?.measurementId]);
+  }, [measurementRequested, result?.measurementId]);
 
-  const showInvalidQr = useCallback(() => {
-    window.clearTimeout(toastTimer.current);
-    setScannerError(INVALID_QR_MESSAGE);
-    toastTimer.current = window.setTimeout(() => setScannerError(undefined), 3000);
-  }, []);
+  const startMeasurement = useCallback(() => {
+    if (!apiStatusLoaded) return;
+    if (bdotApiDisabled) {
+      showDummyResult();
+      setSelectedSection(0);
+      setPage("result");
+      return;
+    }
+    setMeasurementRequested(true);
+    setPage("loading");
+  }, [apiStatusLoaded, bdotApiDisabled, showDummyResult]);
 
-  const leaveScanner = useCallback(() => {
+  const retryMeasurement = useCallback(() => {
+    setPage("loading");
+    reload();
+  }, [reload]);
+
+  const finishMeasurement = useCallback(() => {
     saveController.current?.abort();
     saveController.current = null;
     processing.current = false;
     setSaving(false);
+    window.clearTimeout(qrToastTimer.current);
     setScannerError(undefined);
-    setPage("result");
+    setSelectedSection(0);
+    setMeasurementRequested(false);
+    setPage("idle");
+  }, []);
+
+  const showInvalidQr = useCallback(() => {
+    window.clearTimeout(qrToastTimer.current);
+    setScannerError(INVALID_QR_ERROR);
+    qrToastTimer.current = window.setTimeout(() => setScannerError(undefined), 3_000);
+  }, []);
+
+  const dismissScannerError = useCallback(() => {
+    window.clearTimeout(qrToastTimer.current);
+    setScannerError(undefined);
   }, []);
 
   const handleCode = useCallback(async (code: string) => {
@@ -133,6 +177,9 @@ export default function App() {
       return;
     }
 
+    window.clearTimeout(qrToastTimer.current);
+    setScannerError(undefined);
+
     console.log("QR code decoded, userId:", payload.userId);
 
     const controller = new AbortController();
@@ -141,26 +188,27 @@ export default function App() {
     try {
       setSaving(true);
       await resultSaver.save({ user: payload, result }, controller.signal);
-      setSaveNotice(
-        RUNTIME.useMockSave
-          ? `Mock save completed for ${payload.nickname}.`
-          : `${payload.nickname}님의 결과를 저장했습니다.`,
-      );
-      leaveScanner();
-      window.clearTimeout(saveNoticeTimer.current);
-      saveNoticeTimer.current = window.setTimeout(() => setSaveNotice(undefined), 3500);
+      finishMeasurement();
     } catch (error) {
       if (controller.signal.aborted) return;
       console.error("[BODYDOT SAVE FAILED]", error);
-      window.clearTimeout(toastTimer.current);
-      setScannerError(SAVE_FAILED_MESSAGE);
-      toastTimer.current = window.setTimeout(() => setScannerError(undefined), 3000);
+      const detail = error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : JSON.stringify(error);
+      setScannerError({
+        kind: "dialog",
+        title: SAVE_FAILED_MESSAGE,
+        message: detail || "Unknown error. Please try again.",
+        userId: payload.userId,
+      });
     } finally {
       if (saveController.current === controller) saveController.current = null;
       processing.current = false;
       setSaving(false);
     }
-  }, [leaveScanner, result, showInvalidQr]);
+  }, [finishMeasurement, result, showInvalidQr]);
 
   const debugValidScan = useCallback(async () => {
     const token = JSON.stringify({
@@ -226,6 +274,8 @@ export default function App() {
     if (dummyResultTapCount.current >= 3) {
       dummyResultTapCount.current = 0;
       showDummyResult();
+      setSelectedSection(0);
+      setPage("result");
       return;
     }
     dummyResultTapTimer.current = window.setTimeout(() => {
@@ -316,28 +366,28 @@ export default function App() {
     </>
   );
   const pullToRefreshZone = <div className="pull-to-refresh-zone" aria-hidden="true" />;
+  const resultInactivity = useInactivityTimeout({
+    enabled: page === "result" && Boolean(result),
+    timeoutMs: KIOSK_TIMING.resultInactivityTimeoutMs,
+    warningMs: KIOSK_TIMING.resultInactivityWarningMs,
+    onTimeout: finishMeasurement,
+  });
 
-  if (loading) return <><LoadingScreen />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
+  if (page === "idle") {
+    return <><IdleScreen disabled={!apiStatusLoaded} onStart={startMeasurement} />{pullToRefreshZone}<button className="dummy-result-hotspot" type="button" aria-label="Show dummy result" onClick={handleDummyResultTap} />{kioskSettingsControls}<OfflineNotice networkError={false} /></>;
+  }
+  if (loading || (page === "loading" && !error)) return <><LoadingScreen />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   if (!result) {
-    return <><main className="app-state app-state--error"><h1>측정 결과를 불러올 수 없습니다.</h1><p>{error ?? "잠시 후 다시 시도해 주세요."}</p><button type="button" onClick={reload}>다시 시도</button></main>{pullToRefreshZone}{kioskSettingsControls}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
+    return <><main className="app-state app-state--error"><h1>측정 결과를 불러올 수 없습니다.</h1><p>{error ?? "잠시 후 다시 시도해 주세요."}</p><button type="button" onClick={retryMeasurement}>다시 시도</button></main>{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   }
   if (page === "scanner") {
-    return <><QrScannerScreen onBack={leaveScanner} onCode={handleCode} debugValidScan={debugValidScan} debugInvalidScan={() => void handleCode("invalid-debug-token")} errorMessage={scannerError} saving={saving} />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
+    return <><QrScannerScreen onExit={finishMeasurement} onTimeout={finishMeasurement} onCode={handleCode} debugValidScan={debugValidScan} debugInvalidScan={() => void handleCode("invalid-debug-token")} error={scannerError} onErrorDismiss={dismissScannerError} saving={saving} />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   }
 
   return (
     <main className="kiosk-page result-page">
       {pullToRefreshZone}
       <div className="checker checker--top" aria-hidden="true" />
-      {!bdotApiDisabled && (
-        <button
-          className="dummy-result-hotspot"
-          type="button"
-          aria-label="Show dummy result"
-          onClick={handleDummyResultTap}
-        />
-      )}
-      {kioskSettingsControls}
       <BrandHeader />
       <h1 className="page-title">프레임 교정 측정 결과</h1>
       <nav className="result-tabs" aria-label="측정 결과 종류">
@@ -363,11 +413,14 @@ export default function App() {
           />
         ))}
       </nav>
-      <button className="action-button action-button--primary" type="button" onClick={() => setPage("scanner")}>QR 코드 스캔하기</button>
-      {saveNotice && <div className="action-button save-notice" role="status">{saveNotice}</div>}
+      <div className="result-actions">
+        <button className="action-button action-button--secondary" type="button" onClick={finishMeasurement}>종료하기</button>
+        <button className="action-button action-button--primary" type="button" onClick={() => setPage("scanner")}>QR 코드 스캔하기</button>
+      </div>
       <div className="checker checker--bottom" aria-hidden="true" />
       {RUNTIME.useMockData && <aside className="debug-tools"><span>DEBUG · {result.measurementId}</span><button type="button" onClick={simulateNewResult}>Simulate New Result</button></aside>}
       <OfflineNotice networkError={errorCode === "NETWORK_ERROR"} />
+      <InactivityOverlay seconds={resultInactivity.remainingSeconds} visible={resultInactivity.showWarning} />
     </main>
   );
 }

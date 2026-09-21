@@ -1,21 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
+import { KIOSK_TIMING } from "../config/kiosk";
 import { RUNTIME } from "../config/runtime";
 import { BrandHeader } from "./BrandHeader";
 
-const INACTIVITY_MS = 30_000;
-const INACTIVITY_SECONDS = INACTIVITY_MS / 1000;
+const INACTIVITY_MS = KIOSK_TIMING.qrScannerInactivityTimeoutMs;
+const INACTIVITY_SECONDS = Math.ceil(INACTIVITY_MS / 1000);
 
 interface Props {
-  onBack: () => void;
-  onCode: (code: string) => void;
-  debugValidScan: () => void;
+  onExit: () => void;
+  onTimeout: () => void;
+  onCode: (code: string) => Promise<void>;
+  debugValidScan: () => Promise<void>;
   debugInvalidScan: () => void;
-  errorMessage?: string;
+  error?: { kind: "toast" | "dialog"; title: string; message: string; userId?: string };
+  onErrorDismiss: () => void;
   saving?: boolean;
 }
 
-export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidScan, errorMessage, saving }: Props) {
+export function QrScannerScreen({ onExit, onTimeout, onCode, debugValidScan, debugInvalidScan, error, onErrorDismiss, saving }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
   const timeoutRef = useRef<number | undefined>(undefined);
@@ -28,8 +31,8 @@ export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidSc
     window.clearTimeout(timeoutRef.current);
     deadlineRef.current = Date.now() + INACTIVITY_MS;
     setSecondsRemaining(INACTIVITY_SECONDS);
-    timeoutRef.current = window.setTimeout(onBack, INACTIVITY_MS);
-  }, [onBack]);
+    timeoutRef.current = window.setTimeout(onTimeout, INACTIVITY_MS);
+  }, [onTimeout]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -44,7 +47,7 @@ export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidSc
     if (!video) return;
     const scanner = new QrScanner(video, ({ data }) => {
       resetInactivity();
-      onCode(data);
+      void onCode(data);
     }, {
       preferredCamera: "user",
       highlightScanRegion: false,
@@ -64,7 +67,7 @@ export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidSc
       scanner.destroy();
       scannerRef.current = null;
     };
-  }, [onBack, onCode, resetInactivity]);
+  }, [onCode, resetInactivity]);
 
   return (
     <main className="kiosk-page scanner-screen" onPointerDown={resetInactivity} onKeyDown={resetInactivity}>
@@ -97,16 +100,31 @@ export function QrScannerScreen({ onBack, onCode, debugValidScan, debugInvalidSc
         )}
         {cameraError && <div className="camera-message">{cameraError}</div>}
         {saving && <div className="camera-message">결과를 저장하는 중입니다...</div>}
-        {errorMessage && <div className="scanner-toast" role="alert">{errorMessage}</div>}
+        {error?.kind === "toast" && <div className="scanner-toast" role="alert">{error.message}</div>}
       </div>
-      <button className="action-button action-button--secondary" type="button" onClick={onBack}>뒤로</button>
+      <button className="action-button action-button--secondary" type="button" onClick={onExit}>종료하기</button>
       <div className="checker checker--bottom" aria-hidden="true" />
       {RUNTIME.useMockSave && (
         <aside className="debug-tools" aria-label="Debug tools">
           <span>DEBUG</span>
-          <button type="button" onClick={debugValidScan}>Valid QR</button>
+          <button type="button" onClick={() => void debugValidScan()}>Valid QR</button>
           <button type="button" onClick={debugInvalidScan}>Invalid QR</button>
         </aside>
+      )}
+      {error?.kind === "dialog" && (
+        <div className="scanner-error-backdrop">
+          <section className="scanner-error-dialog" role="alertdialog" aria-modal="true" aria-labelledby="scanner-error-title" aria-describedby="scanner-error-message">
+            <h2 id="scanner-error-title">{error.title}</h2>
+            <p id="scanner-error-message">{error.message}</p>
+            {error.userId && (
+              <div className="scanner-error-user-id">
+                <span>Sent userId</span>
+                <code>{error.userId}</code>
+              </div>
+            )}
+            <button type="button" onClick={onErrorDismiss}>Close</button>
+          </section>
+        </div>
       )}
     </main>
   );
