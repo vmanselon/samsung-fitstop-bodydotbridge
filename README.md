@@ -11,7 +11,8 @@ The design target is a Samsung Galaxy Tab S9 FE+ in portrait mode (1600 × 2560 
 - `src/components` — result, loading, camera scanner, and shared UI
 - `src/hooks/useBodyResult.ts` — configurable latest-session polling and last-known-good state
 - `src/services/bodydotClient.ts` — BAS session validation and UI-shape adapter
-- `src/services/qrToken.ts` — printer-kiosk-compatible HMAC QR validation
+- `src/services/qrCode.ts` — printer-kiosk-compatible JSON QR validation
+- `src/services/qrToken.ts` — legacy HMAC QR validation
 - `src/services/resultSave.ts` — replaceable mock/save adapter
 - `src/types/bodyResult.ts` — UI/API boundary types
 - `src/data/mockBodyResult.ts` — development result matching the supplied design
@@ -130,10 +131,18 @@ seconds of expiry, retries one time after a 401, and honors numeric
 
 ## QR security
 
-For a production Tauri build, set `QR_SECRET` to the same HMAC secret used by
-the Samsung printer kiosk. The native verifier and the Valid QR debug action
-both retrieve this one value. It is never exposed through a `VITE_` variable or
-included directly in the frontend assets.
+Current FITSTOP codes contain JSON, for example
+`{"id":"user-001","name":"홍길동","result":[1,0,1,0]}`. The scanner validates
+these fields using the printer kiosk's format and sends `id` as `userID` to the
+save API. These codes are unsigned and do not use `QR_SECRET`. The Valid QR debug
+action uses this format too.
+
+Legacy HMAC tokens remain supported. For these tokens, set `QR_SECRET` to the
+issuer's HMAC secret when building the Tauri app. Browser development mode verifies
+signatures on the Vite server using `QR_SECRET` from `.env`. Restart Vite after
+updating its configuration. Static browser previews use the debug secret for
+legacy tokens. The native secret is never exposed through a `VITE_`
+variable or included directly in the frontend assets.
 
 ## Production frontend configuration
 

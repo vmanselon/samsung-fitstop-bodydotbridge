@@ -1,7 +1,7 @@
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { RUNTIME } from "../config/runtime";
 import type { BodyResult } from "../types/bodyResult";
-import type { UserQrPayload } from "./qrToken";
+import type { QrUser } from "./qrCode";
 
 const BODYDOT_SAVE_PATH = "/api/bodydot";
 
@@ -10,7 +10,7 @@ function bodydotSaveUrl(): string {
 }
 
 export interface ResultSaveRequest {
-  user: UserQrPayload;
+  user: QrUser;
   result: BodyResult;
 }
 

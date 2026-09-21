@@ -8,14 +8,14 @@ import { QrScannerScreen } from "./components/QrScannerScreen";
 import { RUNTIME } from "./config/runtime";
 import { useBodyResult } from "./hooks/useBodyResult";
 import { getQrSecret } from "./services/qrSecret";
-import { signUserQrPayload, verifyUserQrToken } from "./services/qrToken";
+import { decodeQrUser } from "./services/qrCode";
 import { resultSaver } from "./services/resultSave";
 import { getBdotApiEnabled, getKioskClientId, saveKioskClientId, setBdotApiEnabled } from "./services/kioskClientId";
 import "./App.css";
 
 type Page = "result" | "scanner";
-const INVALID_QR_MESSAGE = "QR 코드를 인식할 수 없습니다. 다시 시도해 주세요.";
-const SAVE_FAILED_MESSAGE = "결과를 저장하지 못했습니다. 다시 시도해 주세요.";
+const INVALID_QR_MESSAGE = "Unable to recognize this QR code. Please try again.";
+const SAVE_FAILED_MESSAGE = "Failed to save your results. Please try again.";
 const KIOSK_SETTINGS_HOLD_MS = 5_000;
 const DUMMY_RESULT_TAP_WINDOW_MS = 600;
 const PULL_TO_REFRESH_START_Y = 260;
@@ -123,9 +123,9 @@ export default function App() {
     processing.current = true;
     let payload;
     try {
-      payload = await verifyUserQrToken(code, await getQrSecret());
-    } catch (validationError) {
-      console.error("QR token verification failed", validationError);
+      payload = await decodeQrUser(code, getQrSecret);
+    } catch {
+      // Report verification errors through the scanner toast.
     }
     if (!payload) {
       showInvalidQr();
@@ -147,9 +147,8 @@ export default function App() {
       leaveScanner();
       window.clearTimeout(saveNoticeTimer.current);
       saveNoticeTimer.current = window.setTimeout(() => setSaveNotice(undefined), 3500);
-    } catch (saveError) {
+    } catch {
       if (controller.signal.aborted) return;
-      console.error("Bodydot result save failed", saveError);
       window.clearTimeout(toastTimer.current);
       setScannerError(SAVE_FAILED_MESSAGE);
       toastTimer.current = window.setTimeout(() => setScannerError(undefined), 3000);
@@ -161,13 +160,11 @@ export default function App() {
   }, [leaveScanner, result, showInvalidQr]);
 
   const debugValidScan = useCallback(async () => {
-    const qrSecret = await getQrSecret();
-    const token = await signUserQrPayload({
-      userId: "debug-user-001",
-      nickname: "Debug User",
-      issuedAt: Date.now(),
-      stamps: [1, 2, 3, 4].map((stationId) => ({ stationId, status: "collected" as const })),
-    }, qrSecret);
+    const token = JSON.stringify({
+      id: "debug-user-001",
+      name: "Debug User",
+      result: [1, 1, 1, 1],
+    });
     await handleCode(token);
   }, [handleCode]);
 

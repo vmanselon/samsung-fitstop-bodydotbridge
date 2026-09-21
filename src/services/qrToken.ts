@@ -42,6 +42,16 @@ function isUserQrPayload(value: unknown): value is UserQrPayload {
     }) && typeof payload.issuedAt === "number";
 }
 
+/** Call only after the token signature has been verified. */
+export function parseVerifiedQrPayload(token: string): UserQrPayload | undefined {
+  try {
+    const bytes = decodeBase64Url(token.slice(0, token.lastIndexOf(".")));
+    if (!bytes) return undefined;
+    const payload: unknown = JSON.parse(decoder.decode(bytes));
+    return isUserQrPayload(payload) ? payload : undefined;
+  } catch { return undefined; }
+}
+
 /** Kept byte-for-byte compatible with the Samsung printer kiosk token scheme. */
 export async function verifyUserQrToken(token: string, secret: string): Promise<UserQrPayload | undefined> {
   if (!secret) return undefined;
