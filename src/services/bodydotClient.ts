@@ -104,12 +104,17 @@ function centeredStatus(value: number, normalStart: number, normalEnd: number): 
 
 function toneFor(value: string): MeasurementMetric["tone"] {
   if (value === "정상") return "normal";
-  if (value.startsWith("보통")) return "moderate";
+  if (value.includes("보통")) return "moderate";
   return "attention";
 }
 
+function normalizeDirectionLabel(value: string): string {
+  return value.replace(/왼쪽/gu, "좌").replace(/오른쪽/gu, "우");
+}
+
 function metric(label: string, value: string): MeasurementMetric {
-  return { label, value, tone: toneFor(value) };
+  const normalizedValue = normalizeDirectionLabel(value);
+  return { label, value: normalizedValue, tone: toneFor(normalizedValue) };
 }
 
 /**

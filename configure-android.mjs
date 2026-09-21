@@ -61,6 +61,12 @@ try {
   let updated = original.includes("android:screenOrientation=")
     ? original.replace(/android:screenOrientation="[^"]*"/u, 'android:screenOrientation="portrait"')
     : original.replace(/(<activity\b[^>]*android:name="\.MainActivity")/u, '$1 android:screenOrientation="portrait"');
+  if (!updated.includes("android.permission.ACCESS_NETWORK_STATE")) {
+    updated = updated.replace(
+      /(<uses-permission android:name="android\.permission\.INTERNET"\s*\/>)/u,
+      '$1\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />',
+    );
+  }
   if (!updated.includes("android.permission.CAMERA")) {
     updated = updated.replace(
       /(<uses-permission android:name="android\.permission\.INTERNET"\s*\/>)/u,
