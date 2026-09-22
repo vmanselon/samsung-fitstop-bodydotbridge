@@ -10,6 +10,7 @@ const immersiveActivity = `package com.samsunglife.fitstop.bodydotbridge
 
 import android.os.Build
 import android.os.Bundle
+import android.content.pm.ActivityInfo
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -17,6 +18,7 @@ import android.view.WindowManager
 
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
+    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     super.onCreate(savedInstanceState)
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     scheduleImmersiveMode()
@@ -72,6 +74,25 @@ try {
       /(<uses-permission android:name="android\.permission\.INTERNET"\s*\/>)/u,
       '$1\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera.front" android:required="true" />',
     );
+  }
+  if (!updated.includes('android:resizeableActivity=')) {
+    updated = updated.replace(
+      /(<application\b)/u,
+      '$1 android:resizeableActivity="false"',
+    );
+  }
+  const applicationProperties = [
+    ["android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY", "true"],
+    ["android.window.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE", "false"],
+    ["android.window.PROPERTY_COMPAT_ALLOW_USER_ASPECT_RATIO_OVERRIDE", "false"],
+  ];
+  for (const [name, value] of applicationProperties) {
+    if (!updated.includes(`android:name="${name}"`)) {
+      updated = updated.replace(
+        /(<application\b[^>]*>)/u,
+        `$1\n        <property android:name="${name}" android:value="${value}" />`,
+      );
+    }
   }
   if (updated === original && !original.includes('android:screenOrientation="portrait"')) {
     throw new Error("MainActivity was not found in AndroidManifest.xml");

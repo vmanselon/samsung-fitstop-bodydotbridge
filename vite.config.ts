@@ -36,10 +36,9 @@ export default defineConfig(({ mode }) => ({
             throw new Error("Invalid signed QR format");
           }
           const [payload, signature] = token.split(".");
-          const expected = createHmac("sha256", secret).update(payload).digest("base64url");
-          const encoder = new TextEncoder();
-          const valid = signature.length === expected.length &&
-            timingSafeEqual(encoder.encode(signature), encoder.encode(expected));
+          const provided = Buffer.from(signature, "base64url");
+          const expected = createHmac("sha256", secret).update(payload).digest().subarray(0, 16);
+          const valid = provided.length === expected.length && timingSafeEqual(provided, expected);
           response.end(JSON.stringify({ valid }));
         } catch {
           response.statusCode = 400;

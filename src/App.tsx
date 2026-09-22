@@ -35,6 +35,7 @@ const KIOSK_SETTINGS_HOLD_MS = 5_000;
 const DUMMY_RESULT_TAP_WINDOW_MS = 600;
 const PULL_TO_REFRESH_START_Y = 260;
 const PULL_TO_REFRESH_DISTANCE = 72;
+const SCANNER_OPEN_INPUT_GUARD_MS = 750;
 
 export default function App() {
   const [bdotApiDisabled, setBdotApiDisabled] = useState(true);
@@ -59,6 +60,8 @@ export default function App() {
   const processing = useRef(false);
   const saveController = useRef<AbortController | null>(null);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const scannerSessionActive = useRef(false);
+  const scannerOpenedAt = useRef(0);
 
   useEffect(() => () => {
     window.clearTimeout(qrToastTimer.current);
@@ -148,6 +151,8 @@ export default function App() {
     setScannerError(undefined);
     setSelectedSection(0);
     setMeasurementRequested(false);
+    scannerSessionActive.current = false;
+    scannerOpenedAt.current = 0;
     setPage("idle");
   }, []);
 
@@ -162,14 +167,34 @@ export default function App() {
     setScannerError(undefined);
   }, []);
 
+  const openScanner = useCallback(() => {
+    swipeStart.current = null;
+    scannerSessionActive.current = true;
+    scannerOpenedAt.current = Date.now();
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setPage("scanner");
+  }, []);
+
+  const exitScanner = useCallback(() => {
+    if (Date.now() - scannerOpenedAt.current < SCANNER_OPEN_INPUT_GUARD_MS) {
+      console.info("[QR SCANNER] Ignored carry-over tap while opening scanner");
+      return;
+    }
+    finishMeasurement();
+  }, [finishMeasurement]);
+
+  const handleResultInactivityTimeout = useCallback(() => {
+    if (!scannerSessionActive.current) finishMeasurement();
+  }, [finishMeasurement]);
+
   const handleCode = useCallback(async (code: string) => {
     if (!result || processing.current) return;
     processing.current = true;
     let payload;
     try {
       payload = await decodeQrUser(code, getQrSecret);
-    } catch {
-      // Report verification errors through the scanner toast.
+    } catch (decodeError) {
+      console.error("[FITSTOP QR DECODE ERROR]", decodeError);
     }
     if (!payload) {
       showInvalidQr();
@@ -209,15 +234,6 @@ export default function App() {
       setSaving(false);
     }
   }, [finishMeasurement, result, showInvalidQr]);
-
-  const debugValidScan = useCallback(async () => {
-    const token = JSON.stringify({
-      id: "debug-user-001",
-      name: "Debug User",
-      result: [1, 1, 1, 1],
-    });
-    await handleCode(token);
-  }, [handleCode]);
 
   const startSwipe = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -370,7 +386,7 @@ export default function App() {
     enabled: page === "result" && Boolean(result),
     timeoutMs: KIOSK_TIMING.resultInactivityTimeoutMs,
     warningMs: KIOSK_TIMING.resultInactivityWarningMs,
-    onTimeout: finishMeasurement,
+    onTimeout: handleResultInactivityTimeout,
   });
 
   if (page === "idle") {
@@ -381,7 +397,7 @@ export default function App() {
     return <><main className="app-state app-state--error"><h1>측정 결과를 불러올 수 없습니다.</h1><p>{error ?? "잠시 후 다시 시도해 주세요."}</p><button type="button" onClick={retryMeasurement}>다시 시도</button></main>{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   }
   if (page === "scanner") {
-    return <><QrScannerScreen onExit={finishMeasurement} onTimeout={finishMeasurement} onCode={handleCode} debugValidScan={debugValidScan} debugInvalidScan={() => void handleCode("invalid-debug-token")} error={scannerError} onErrorDismiss={dismissScannerError} saving={saving} />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
+    return <><QrScannerScreen onExit={exitScanner} onTimeout={showInvalidQr} onCode={handleCode} debugInvalidScan={() => void handleCode("invalid-debug-token")} error={scannerError} onErrorDismiss={dismissScannerError} saving={saving} />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   }
 
   return (
@@ -415,7 +431,18 @@ export default function App() {
       </nav>
       <div className="result-actions">
         <button className="action-button action-button--secondary" type="button" onClick={finishMeasurement}>종료하기</button>
-        <button className="action-button action-button--primary" type="button" onClick={() => setPage("scanner")}>QR 코드 스캔하기</button>
+        <button
+          className="action-button action-button--primary"
+          type="button"
+          onPointerUp={(event) => {
+            if (event.pointerType !== "mouse") {
+              window.setTimeout(openScanner, 0);
+            }
+          }}
+          onClick={openScanner}
+        >
+          QR 코드 스캔하기
+        </button>
       </div>
       <div className="checker checker--bottom" aria-hidden="true" />
       {RUNTIME.useMockData && <aside className="debug-tools"><span>DEBUG · {result.measurementId}</span><button type="button" onClick={simulateNewResult}>Simulate New Result</button></aside>}

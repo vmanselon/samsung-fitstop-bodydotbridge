@@ -72,6 +72,7 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
+  touch-action: none;
 }
 
 body {
@@ -497,6 +498,8 @@ button {
   position: static;
   width: 100%;
   transform: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .idle-screen .action-button {

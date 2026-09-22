@@ -11,36 +11,41 @@ interface Props {
   onExit: () => void;
   onTimeout: () => void;
   onCode: (code: string) => Promise<void>;
-  debugValidScan: () => Promise<void>;
   debugInvalidScan: () => void;
   error?: { kind: "toast" | "dialog"; title: string; message: string; userId?: string };
   onErrorDismiss: () => void;
   saving?: boolean;
 }
 
-export function QrScannerScreen({ onExit, onTimeout, onCode, debugValidScan, debugInvalidScan, error, onErrorDismiss, saving }: Props) {
+export function QrScannerScreen({ onExit, onTimeout, onCode, debugInvalidScan, error, onErrorDismiss, saving }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
-  const timeoutRef = useRef<number | undefined>(undefined);
   const deadlineRef = useRef(Date.now() + INACTIVITY_MS);
+  const timedOutRef = useRef(false);
+  const onTimeoutRef = useRef(onTimeout);
   const [cameraError, setCameraError] = useState<string>();
   const [cameraReady, setCameraReady] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(INACTIVITY_SECONDS);
+  onTimeoutRef.current = onTimeout;
 
   const resetInactivity = useCallback(() => {
-    window.clearTimeout(timeoutRef.current);
+    timedOutRef.current = false;
     deadlineRef.current = Date.now() + INACTIVITY_MS;
     setSecondsRemaining(INACTIVITY_SECONDS);
-    timeoutRef.current = window.setTimeout(onTimeout, INACTIVITY_MS);
-  }, [onTimeout]);
+  }, []);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000));
       setSecondsRemaining(remaining);
+      if (remaining === 0 && !timedOutRef.current) {
+        timedOutRef.current = true;
+        onTimeoutRef.current();
+        resetInactivity();
+      }
     }, 250);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [resetInactivity]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -62,7 +67,6 @@ export function QrScannerScreen({ onExit, onTimeout, onCode, debugValidScan, deb
     });
 
     return () => {
-      window.clearTimeout(timeoutRef.current);
       scanner.stop();
       scanner.destroy();
       scannerRef.current = null;
@@ -74,7 +78,7 @@ export function QrScannerScreen({ onExit, onTimeout, onCode, debugValidScan, deb
       <div className="checker checker--top" aria-hidden="true" />
       <BrandHeader />
       <h1 className="page-title">QR 코드를 스캔해 주세요</h1>
-      <p className="scanner-subtitle">스캔 화면은 <strong>{secondsRemaining}초</strong> 후 자동으로 닫힙니다</p>
+      <p className="scanner-subtitle">QR 코드 인식 대기 시간 <strong>{secondsRemaining}초</strong></p>
       <div className="camera-preview">
         <video
           ref={videoRef}
@@ -107,7 +111,6 @@ export function QrScannerScreen({ onExit, onTimeout, onCode, debugValidScan, deb
       {RUNTIME.useMockSave && (
         <aside className="debug-tools" aria-label="Debug tools">
           <span>DEBUG</span>
-          <button type="button" onClick={() => void debugValidScan()}>Valid QR</button>
           <button type="button" onClick={debugInvalidScan}>Invalid QR</button>
         </aside>
       )}

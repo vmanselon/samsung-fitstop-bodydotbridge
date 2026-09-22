@@ -2,6 +2,7 @@ package com.samsunglife.fitstop.bodydotbridge
 
 import android.os.Build
 import android.os.Bundle
+import android.content.pm.ActivityInfo
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -9,6 +10,7 @@ import android.view.WindowManager
 
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
+    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     super.onCreate(savedInstanceState)
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     scheduleImmersiveMode()

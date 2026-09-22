@@ -11,8 +11,8 @@ The design target is a Samsung Galaxy Tab S9 FE+ in portrait mode (1600 × 2560 
 - `src/components` — result, loading, camera scanner, and shared UI
 - `src/hooks/useBodyResult.ts` — idle-gated, one-shot latest-session retrieval
 - `src/services/bodydotClient.ts` — BAS session validation and UI-shape adapter
-- `src/services/qrCode.ts` — printer-kiosk-compatible JSON QR validation
-- `src/services/qrToken.ts` — legacy HMAC QR validation
+- `src/services/qrCode.ts` — signed compact QR URL validation
+- `src/services/qrToken.ts` — compact payload and truncated-HMAC verification
 - `src/services/resultSave.ts` — replaceable mock/save adapter
 - `src/types/bodyResult.ts` — UI/API boundary types
 - `src/data/mockBodyResult.ts` — development result matching the supplied design
@@ -126,18 +126,19 @@ seconds of expiry, retries one time after a 401, and honors numeric
 
 ## QR security
 
-Current FITSTOP codes contain JSON, for example
-`{"id":"user-001","name":"홍길동","result":[1,0,1,0]}`. The scanner validates
-these fields using the printer kiosk's format and sends `id` as `userId` to the
-save API. These codes are unsigned and do not use `QR_SECRET`. The Valid QR debug
-action uses this format too.
+Current FITSTOP codes contain either the bare
+`<base64url-payload>.<base64url-mac>` token or a URL such as
+`https://<host>/collect?t=<base64url-payload>.<base64url-mac>`. These are two
+wrappers for the same format: the signed payload uses the server's compact user
+UUID, nickname, stamp, and issue-time encoding, and its SHA-256 HMAC is truncated
+to 128 bits. The scanner verifies the token with `QR_SECRET` and sends the
+decoded UUID as `userId` to the save API.
 
-Legacy HMAC tokens remain supported. For these tokens, set `QR_SECRET` to the
-issuer's HMAC secret when building the Tauri app. Browser development mode verifies
-signatures on the Vite server using `QR_SECRET` from `.env`. Restart Vite after
-updating its configuration. Static browser previews use the debug secret for
-legacy tokens. The native secret is never exposed through a `VITE_`
-variable or included directly in the frontend assets.
+Older unsigned JSON and signed JSON/full-HMAC codes are rejected. Browser
+development mode verifies current signed codes on the Vite server using
+`QR_SECRET` from `.env`; restart Vite after changing it. The native secret is
+never exposed through a `VITE_` variable or included directly in the frontend
+assets.
 
 ## Production frontend configuration
 
