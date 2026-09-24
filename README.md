@@ -56,6 +56,7 @@ Copy `.env.example` to `.env` for local development. Variables beginning with
 | `QR_SECRET` | None | Native-only HMAC secret shared with the Samsung printer kiosk |
 | `VITE_USE_MOCK_DATA` | `true` | Use local measurement data instead of the BAS API |
 | `VITE_BDOT_LOG_SESSION` | `false` | Log full BAS sessions with the `[BODYDOT BAS SESSION]` label |
+| `VITE_BDOT_LOG_DATA` | `false` | Log the nine mapped BAS Step + Code values as a console table |
 | `VITE_USE_MOCK_SAVE` | `true` | Use local saves and show the QR test controls |
 | `VITE_API_BASE_URL` | Empty | Base URL for production API requests |
 
@@ -63,8 +64,8 @@ Restart the development process or rebuild the app after changing a `VITE_`
 variable.
 
 Full BAS sessions can contain measurement data. Enable
-`VITE_BDOT_LOG_SESSION` only while debugging and leave it disabled in
-production.
+`VITE_BDOT_LOG_SESSION` or `VITE_BDOT_LOG_DATA` only while debugging and leave
+them disabled in production.
 
 ## Bodydot BAS configuration
 
@@ -113,9 +114,12 @@ making a Bodydot request, and the native backend rejects new Bodydot requests. T
 deliberately session-only and resets to Enabled whenever the app restarts; it
 is never written to persistent storage.
 
-Tapping the invisible 150 × 150 px area in the idle screen's top-left corner
-three times consecutively opens the result screen with the built-in dummy data.
+Tapping the FITSTOP icon on the idle screen three times consecutively opens the
+result screen with the built-in dummy data.
 The tap sequence resets after 600 milliseconds without another tap.
+
+Pressing and holding the invisible 150 × 150 px area in the top-left corner for
+five seconds reloads the app. This refresh hotspot is available on every screen.
 
 `get_latest_measurement` takes no frontend arguments. It returns the complete
 BAS `MeasurementSession`, or a structured command error with codes including
@@ -123,6 +127,11 @@ BAS `MeasurementSession`, or a structured command error with codes including
 `RATE_LIMITED`. The Rust client caches tokens in memory, refreshes within 60
 seconds of expiry, retries one time after a 401, and honors numeric
 `Retry-After` values (falling back to 30 seconds).
+
+If the latest session exists but is empty, malformed, or is missing any metric
+required by the result screen, it is classified as `INCOMPLETE_MEASUREMENT` and
+the kiosk asks the user to try again shortly instead of showing technical API
+details.
 
 ## QR security
 
@@ -173,10 +182,11 @@ The red offline banner uses both the device's connectivity state and real BAS
 result, and QR scanner screens.
 
 The current result design requires three sections containing three metrics each.
-`src/services/bodydotClient.ts` maps the BAS `valueCode` fields to the front,
-side, and flexibility cards and classifies each result as normal, moderate, or
-attention. BAS `twoPointDistance` values used by the shoulder-flexibility rules
-are converted from metres to centimetres before classification.
+`src/services/bodydotClient.ts` maps exact BAS step-code and `valueCode` pairs to
+the front, side, and flexibility cards. Values inside the configured inclusive
+normal range are classified as normal; every numeric value outside that range
+is classified as attention. Shoulder-flexibility values remain in the metres
+returned by BAS and use the inclusive `0` to `0.30` metre range.
 
 After a valid QR scan, production save mode sends `POST application/json` to
 Browser development requests use a local Vite proxy to avoid cross-origin restrictions.

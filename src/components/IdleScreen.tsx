@@ -2,14 +2,15 @@ import { BrandHeader } from "./BrandHeader";
 
 interface Props {
   disabled: boolean;
+  onIconClick: () => void;
   onStart: () => void;
 }
 
-export function IdleScreen({ disabled, onStart }: Props) {
+export function IdleScreen({ disabled, onIconClick, onStart }: Props) {
   return (
     <main className="kiosk-page idle-screen">
       <div className="checker checker--top" aria-hidden="true" />
-      <BrandHeader />
+      <BrandHeader onIconClick={onIconClick} />
       <h1 className="page-title">프레임 교정 측정 결과</h1>
       <button
         className="action-button action-button--primary"

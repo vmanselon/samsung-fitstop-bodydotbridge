@@ -32,6 +32,7 @@ const INVALID_QR_ERROR: ScannerError = {
 };
 const SAVE_FAILED_MESSAGE = "Failed to save your results.";
 const KIOSK_SETTINGS_HOLD_MS = 5_000;
+const APP_REFRESH_HOLD_MS = 5_000;
 const DUMMY_RESULT_TAP_WINDOW_MS = 600;
 const PULL_TO_REFRESH_START_Y = 260;
 const PULL_TO_REFRESH_DISTANCE = 72;
@@ -55,6 +56,7 @@ export default function App() {
   const [apiToggleBusy, setApiToggleBusy] = useState(false);
   const qrToastTimer = useRef<number | undefined>(undefined);
   const kioskSettingsHoldTimer = useRef<number | undefined>(undefined);
+  const appRefreshHoldTimer = useRef<number | undefined>(undefined);
   const dummyResultTapTimer = useRef<number | undefined>(undefined);
   const dummyResultTapCount = useRef(0);
   const processing = useRef(false);
@@ -66,6 +68,7 @@ export default function App() {
   useEffect(() => () => {
     window.clearTimeout(qrToastTimer.current);
     window.clearTimeout(kioskSettingsHoldTimer.current);
+    window.clearTimeout(appRefreshHoldTimer.current);
     window.clearTimeout(dummyResultTapTimer.current);
     saveController.current?.abort();
   }, []);
@@ -284,6 +287,22 @@ export default function App() {
     }, KIOSK_SETTINGS_HOLD_MS);
   }, [cancelKioskSettingsHold, openKioskEditor]);
 
+  const cancelAppRefreshHold = useCallback(() => {
+    window.clearTimeout(appRefreshHoldTimer.current);
+    appRefreshHoldTimer.current = undefined;
+  }, []);
+
+  const startAppRefreshHold = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+    event.preventDefault();
+    cancelAppRefreshHold();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    appRefreshHoldTimer.current = window.setTimeout(() => {
+      appRefreshHoldTimer.current = undefined;
+      window.location.reload();
+    }, APP_REFRESH_HOLD_MS);
+  }, [cancelAppRefreshHold]);
+
   const handleDummyResultTap = useCallback(() => {
     window.clearTimeout(dummyResultTapTimer.current);
     dummyResultTapCount.current += 1;
@@ -381,7 +400,21 @@ export default function App() {
       )}
     </>
   );
-  const pullToRefreshZone = <div className="pull-to-refresh-zone" aria-hidden="true" />;
+  const refreshControls = (
+    <>
+      <div className="pull-to-refresh-zone" aria-hidden="true" />
+      <button
+        className="app-refresh-hotspot"
+        type="button"
+        aria-label="Hold to refresh app"
+        onPointerDown={startAppRefreshHold}
+        onPointerUp={cancelAppRefreshHold}
+        onPointerCancel={cancelAppRefreshHold}
+        onLostPointerCapture={cancelAppRefreshHold}
+        onContextMenu={(event) => event.preventDefault()}
+      />
+    </>
+  );
   const resultInactivity = useInactivityTimeout({
     enabled: page === "result" && Boolean(result),
     timeoutMs: KIOSK_TIMING.resultInactivityTimeoutMs,
@@ -390,19 +423,30 @@ export default function App() {
   });
 
   if (page === "idle") {
-    return <><IdleScreen disabled={!apiStatusLoaded} onStart={startMeasurement} />{pullToRefreshZone}<button className="dummy-result-hotspot" type="button" aria-label="Show dummy result" onClick={handleDummyResultTap} />{kioskSettingsControls}<OfflineNotice networkError={false} /></>;
+    return <><IdleScreen disabled={!apiStatusLoaded} onIconClick={handleDummyResultTap} onStart={startMeasurement} />{refreshControls}{kioskSettingsControls}<OfflineNotice networkError={false} /></>;
   }
-  if (loading || (page === "loading" && !error)) return <><LoadingScreen />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
+  if (loading || (page === "loading" && !error)) return <><LoadingScreen />{refreshControls}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   if (!result) {
-    return <><main className="app-state app-state--error"><h1>측정 결과를 불러올 수 없습니다.</h1><p>{error ?? "잠시 후 다시 시도해 주세요."}</p><button type="button" onClick={retryMeasurement}>다시 시도</button></main>{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
+    return <>
+      <main className="app-state app-state--error">
+        <h1>측정 결과를 불러올 수 없습니다.</h1>
+        <p>{error ?? "잠시 후 다시 시도해 주세요."}</p>
+        <div className="result-actions">
+          <button className="action-button action-button--secondary" type="button" onClick={finishMeasurement}>종료하기</button>
+          <button className="action-button action-button--primary" type="button" onClick={retryMeasurement}>다시 시도</button>
+        </div>
+      </main>
+      {refreshControls}
+      <OfflineNotice networkError={errorCode === "NETWORK_ERROR"} />
+    </>;
   }
   if (page === "scanner") {
-    return <><QrScannerScreen onExit={exitScanner} onTimeout={showInvalidQr} onCode={handleCode} debugInvalidScan={() => void handleCode("invalid-debug-token")} error={scannerError} onErrorDismiss={dismissScannerError} saving={saving} />{pullToRefreshZone}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
+    return <><QrScannerScreen onExit={exitScanner} onTimeout={showInvalidQr} onCode={handleCode} debugInvalidScan={() => void handleCode("invalid-debug-token")} error={scannerError} onErrorDismiss={dismissScannerError} saving={saving} />{refreshControls}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   }
 
   return (
     <main className="kiosk-page result-page">
-      {pullToRefreshZone}
+      {refreshControls}
       <div className="checker checker--top" aria-hidden="true" />
       <BrandHeader />
       <h1 className="page-title">프레임 교정 측정 결과</h1>
