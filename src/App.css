@@ -527,6 +527,7 @@ button {
 .idle-screen .action-button {
   top: 62%;
   bottom: auto;
+  width: calc((100% - 23.2rem) / 2);
   transform: translate(-50%, -50%);
   animation: idle-button-breathe 2.4s ease-in-out infinite;
 }
