@@ -3,6 +3,7 @@ import type { BodyResult } from "../types/bodyResult";
 export const mockBodyResult: BodyResult = {
   measurementId: "demo-measurement",
   measuredAt: new Date().toISOString(),
+  isDummy: true,
   sections: [
     { id: "front-posture", title: "정면 측정 결과", view: "front", metrics: [
       { label: "머리 수평", value: "정상", tone: "normal" },

@@ -38,6 +38,26 @@ const PULL_TO_REFRESH_START_Y = 260;
 const PULL_TO_REFRESH_DISTANCE = 72;
 const SCANNER_OPEN_INPUT_GUARD_MS = 750;
 
+function formatKoreanDateTime(value: string): string | undefined {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value;
+  const [year, month, day, hour, minute, second] = ["year", "month", "day", "hour", "minute", "second"]
+    .map((type) => part(type as Intl.DateTimeFormatPartTypes));
+  if (!year || !month || !day || !hour || !minute || !second) return undefined;
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
 export default function App() {
   const [bdotApiDisabled, setBdotApiDisabled] = useState(true);
   const [apiStatusLoaded, setApiStatusLoaded] = useState(false);
@@ -168,6 +188,10 @@ export default function App() {
   const dismissScannerError = useCallback(() => {
     window.clearTimeout(qrToastTimer.current);
     setScannerError(undefined);
+  }, []);
+
+  const handleScannerTimeout = useCallback(() => {
+    window.location.reload();
   }, []);
 
   const openScanner = useCallback(() => {
@@ -441,8 +465,12 @@ export default function App() {
     </>;
   }
   if (page === "scanner") {
-    return <><QrScannerScreen onExit={exitScanner} onTimeout={showInvalidQr} onCode={handleCode} debugInvalidScan={() => void handleCode("invalid-debug-token")} error={scannerError} onErrorDismiss={dismissScannerError} saving={saving} />{refreshControls}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
+    return <><QrScannerScreen onExit={exitScanner} onTimeout={handleScannerTimeout} onCode={handleCode} debugInvalidScan={() => void handleCode("invalid-debug-token")} error={scannerError} onErrorDismiss={dismissScannerError} saving={saving} />{refreshControls}<OfflineNotice networkError={errorCode === "NETWORK_ERROR"} /></>;
   }
+
+  const measuredAtKst = !result.isDummy && result.measuredAt
+    ? formatKoreanDateTime(result.measuredAt)
+    : undefined;
 
   return (
     <main className="kiosk-page result-page">
@@ -488,6 +516,7 @@ export default function App() {
           QR 코드 스캔하기
         </button>
       </div>
+      {measuredAtKst && <time className="result-measured-at" dateTime={result.measuredAt}>{measuredAtKst}</time>}
       <div className="checker checker--bottom" aria-hidden="true" />
       {RUNTIME.useMockData && <aside className="debug-tools"><span>DEBUG · {result.measurementId}</span><button type="button" onClick={simulateNewResult}>Simulate New Result</button></aside>}
       <OfflineNotice networkError={errorCode === "NETWORK_ERROR"} />

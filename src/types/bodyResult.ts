@@ -12,6 +12,7 @@ export interface MeasurementSectionData {
 export interface BodyResult {
   measurementId: string;
   measuredAt?: string;
+  isDummy?: boolean;
   sections: [MeasurementSectionData, MeasurementSectionData, MeasurementSectionData];
 }
 
