@@ -109,12 +109,12 @@ interface MappedBdotDatum {
 
 function mappedBdotData(session: MeasurementSession): MappedBdotDatum[] {
   const mappings: Array<Omit<MappedBdotDatum, "value">> = [
-    { label: "머리 수평", step: "standingFront", code: "headHorizontalAngle", unit: "°" },
-    { label: "어깨 수평", step: "standingFront", code: "shoulderHorizontalAngle", unit: "°" },
-    { label: "골반 수평", step: "standingFront", code: "frontalASISAlignment", unit: "°" },
-    { label: "거북목", step: "standingRight", code: "forwardHeadAngle", unit: "°" },
-    { label: "흉추", step: "standingRight", code: "thoracicKyphosis", unit: "°" },
-    { label: "요추", step: "standingRight", code: "lumbarLordosis", unit: "°" },
+    { label: "머리 수평", step: "standingFrontSimple", code: "headHorizontalAngle", unit: "°" },
+    { label: "어깨 수평", step: "standingFrontSimple", code: "shoulderHorizontalAngle", unit: "°" },
+    { label: "골반 수평", step: "standingFrontSimple", code: "frontalASISAlignment", unit: "°" },
+    { label: "거북목", step: "standingRightSimple", code: "forwardHeadAngle", unit: "°" },
+    { label: "흉추", step: "standingRightSimple", code: "thoracicKyphosis", unit: "°" },
+    { label: "요추", step: "standingRightSimple", code: "lumbarLordosis", unit: "°" },
     { label: "어깨 유연성 R", step: "apleyScratchRightUp", code: "apleyScratchRightUpDistance", unit: "m" },
     { label: "어깨 유연성 L", step: "apleyScratchLeftUp", code: "apleyScratchLeftUpDistance", unit: "m" },
     { label: "서서 발끝잡기", step: "toeTouchingRight", code: "toeTouchKneeAngle", unit: "°" },
